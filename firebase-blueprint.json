@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the application",
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["admin", "user"],
+          "description": "The user's role"
+        }
+      },
+      "required": ["role"]
+    },
+    "SvgDocument": {
+      "title": "SvgDocument",
+      "description": "A generated SVG document",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The user ID of the creator"
+        },
+        "prompt": {
+          "type": "string",
+          "description": "The prompt used to generate the SVG"
+        },
+        "content": {
+          "type": "string",
+          "description": "The raw SVG code"
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "The timestamp of generation"
+        }
+      },
+      "required": ["uid", "prompt", "content", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "User profiles"
+    },
+    "/users/{userId}/svgs/{svgId}": {
+      "schema": { "$ref": "SvgDocument" },
+      "description": "Generated SVGs for a user"
+    }
+  }
+}

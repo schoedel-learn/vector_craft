@@ -1,0 +1,270 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+*/
+
+import React, { useState, useEffect } from 'react';
+import { InputSection } from './components/InputSection';
+import { SvgPreview } from './components/SvgPreview';
+import { Header } from './components/Header';
+import { HistoryModal } from './components/HistoryModal';
+import { Footer } from './components/Footer';
+import { generateSvgFromPrompt } from './services/geminiService';
+import { GeneratedSvg, GenerationStatus, ApiError } from './types';
+import { auth, db, googleProvider } from './firebase';
+import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { collection, query, where, orderBy, onSnapshot, doc, setDoc } from 'firebase/firestore';
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string;
+    email?: string | null;
+    emailVerified?: boolean;
+    isAnonymous?: boolean;
+    tenantId?: string | null;
+    providerInfo?: any[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+const App: React.FC = () => {
+  const [status, setStatus] = useState<GenerationStatus>(GenerationStatus.IDLE);
+  const [currentSvg, setCurrentSvg] = useState<GeneratedSvg | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [history, setHistory] = useState<GeneratedSvg[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsAuthReady(true);
+      
+      // Ensure user document exists (basic bootstrap)
+      if (currentUser) {
+        setDoc(doc(db, 'users', currentUser.uid), { role: 'user' }, { merge: true }).catch(e => {
+          console.error("Failed to bootstrap user role", e);
+        });
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthReady || !user) {
+      setHistory([]);
+      return;
+    }
+
+    const path = `users/${user.uid}/svgs`;
+    const q = query(
+      collection(db, path),
+      orderBy('timestamp', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const svgs: GeneratedSvg[] = [];
+      snapshot.forEach((doc) => {
+        svgs.push({ id: doc.id, ...doc.data() } as GeneratedSvg);
+      });
+      setHistory(svgs);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, path);
+    });
+
+    return () => unsubscribe();
+  }, [user, isAuthReady]);
+
+  const handleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      console.error("Login failed", error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
+  };
+
+  const RECENT_LIMIT = 10;
+  const HOURS_LIMIT = 72;
+  const limitTime = Date.now() - (HOURS_LIMIT * 60 * 60 * 1000);
+  const recentGenerationsCount = history.filter(svg => svg.timestamp > limitTime).length;
+  const generationsLeft = Math.max(0, RECENT_LIMIT - recentGenerationsCount);
+
+  const handleGenerate = async (prompt: string) => {
+    if (!user) {
+      setError({
+        message: "Sign In Required",
+        details: "Please sign in to generate vector art."
+      });
+      setStatus(GenerationStatus.ERROR);
+      return;
+    }
+
+    if (generationsLeft <= 0) {
+      setError({
+        message: "Generation Limit Reached",
+        details: `You have reached your limit of ${RECENT_LIMIT} generations per ${HOURS_LIMIT} hours. Please try again later.`
+      });
+      setStatus(GenerationStatus.ERROR);
+      return;
+    }
+
+    setStatus(GenerationStatus.LOADING);
+    setError(null);
+    setCurrentSvg(null);
+
+    try {
+      const svgContent = await generateSvgFromPrompt(prompt);
+      
+      // Validate the generated SVG content
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(svgContent, "image/svg+xml");
+      const parserError = doc.querySelector("parsererror");
+      const isSvg = doc.documentElement.tagName.toLowerCase() === 'svg';
+
+      if (parserError || !isSvg) {
+        throw new Error("The AI generated invalid SVG code. Please try a different prompt or try again.");
+      }
+
+      const id = crypto.randomUUID();
+      const timestamp = Date.now();
+      
+      const newSvg: GeneratedSvg = {
+        id,
+        content: svgContent,
+        prompt: prompt,
+        timestamp
+      };
+      
+      setCurrentSvg(newSvg);
+      setStatus(GenerationStatus.SUCCESS);
+
+      if (user) {
+        const path = `users/${user.uid}/svgs/${id}`;
+        try {
+          await setDoc(doc(db, `users/${user.uid}/svgs`, id), {
+            uid: user.uid,
+            prompt,
+            content: svgContent,
+            timestamp
+          });
+        } catch (dbError) {
+          handleFirestoreError(dbError, OperationType.CREATE, path);
+        }
+      }
+    } catch (err: any) {
+      setStatus(GenerationStatus.ERROR);
+      setError({
+        message: "Generation Failed",
+        details: err.message || "An unexpected error occurred while contacting Gemini."
+      });
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#101A28] text-base-50 font-sans selection:bg-brand-500/30 flex flex-col">
+      <Header 
+        user={user} 
+        onLogin={handleLogin} 
+        onLogout={handleLogout} 
+        onOpenHistory={() => setIsHistoryOpen(true)} 
+      />
+      
+      <main className="flex-1 pb-20 pt-8">
+        <InputSection 
+          onGenerate={handleGenerate} 
+          status={status} 
+          user={user}
+          generationsLeft={generationsLeft}
+          onLogin={handleLogin}
+        />
+        
+        {status === GenerationStatus.ERROR && error && (
+          <div className="max-w-2xl mx-auto mt-8 px-4">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 text-red-200">
+              <span className="material-symbols-outlined text-red-400 text-[20px] flex-shrink-0 mt-0.5">error</span>
+              <div>
+                <h4 className="font-semibold text-red-400 font-display">{error.message}</h4>
+                <p className="text-sm text-red-300/70 mt-1">{error.details}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {status === GenerationStatus.SUCCESS && currentSvg && (
+          <SvgPreview 
+            data={currentSvg} 
+          />
+        )}
+        
+        {/* Empty State / Placeholder */}
+        {status === GenerationStatus.IDLE && (
+          <div className="max-w-2xl mx-auto mt-16 text-center px-4 opacity-50 pointer-events-none select-none">
+             <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-base-800/50 border border-white/5 mb-4">
+                <svg className="w-12 h-12 text-base-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                   <circle cx="8.5" cy="8.5" r="1.5" />
+                   <polyline points="21 15 16 10 5 21" />
+                </svg>
+             </div>
+             <p className="text-base-400 text-sm">Generated artwork will appear here</p>
+          </div>
+        )}
+      </main>
+
+      <Footer />
+
+      <HistoryModal 
+        isOpen={isHistoryOpen} 
+        onClose={() => setIsHistoryOpen(false)} 
+        history={history} 
+        onRegenerate={handleGenerate} 
+      />
+    </div>
+  );
+};
+
+export default App;

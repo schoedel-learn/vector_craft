@@ -1,0 +1,114 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - role: string (required, 'admin' or 'user')
+    //
+    // Collection: users/{userId}/svgs
+    // Document ID: {svgId}
+    // Fields:
+    //   - uid: string (required, must match userId)
+    //   - prompt: string (required, max length 500)
+    //   - content: string (required, max length 100000)
+    //   - timestamp: number (required, positive)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) ||
+        request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) ||
+        request.resource.data.uid == resource.data.uid;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    function isPositive(field) {
+      return request.resource.data[field] is number && request.resource.data[field] > 0;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "schoedelb@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['role']) &&
+             data.role in ['admin', 'user'];
+    }
+
+    function isValidSvgDocument(data) {
+      return hasOnlyAllowedFields(['uid', 'prompt', 'content', 'timestamp']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
+             validStringLength('prompt', 1, 1000) &&
+             validStringLength('content', 1, 200000) &&
+             isPositive('timestamp');
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && ((isOwner(userId) && request.resource.data.role == 'user') || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
+      allow delete: if isAdmin();
+
+      match /svgs/{svgId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && 
+                         isValidSvgDocument(request.resource.data) && 
+                         uidUnchanged() && 
+                         request.resource.data.uid == userId;
+        allow update: if isOwner(userId) && 
+                         isValidSvgDocument(request.resource.data) && 
+                         uidNotModified() && 
+                         request.resource.data.uid == userId;
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+    }
+  }
+}
