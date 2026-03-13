@@ -3,17 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 
 // Initialize the client
 // CRITICAL: We use process.env.API_KEY as per strict guidelines.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+export interface ReferenceFile {
+  type: 'image' | 'text' | 'pdf';
+  mimeType: string;
+  data: string; // base64 for image/pdf, raw string for text
+}
+
 /**
  * Generates an SVG string based on the user's prompt.
- * Uses 'gemini-3-pro' as requested for generation.
+ * Uses 'gemini-3-flash-preview' for faster generation.
  */
-export const generateSvgFromPrompt = async (prompt: string): Promise<string> => {
+export const generateSvgFromPrompt = async (prompt: string, reference?: ReferenceFile, referenceUrl?: string): Promise<string> => {
   try {
     const systemPrompt = `
       You are a world-class expert in Scalable Vector Graphics (SVG) design and coding. 
@@ -29,16 +35,37 @@ export const generateSvgFromPrompt = async (prompt: string): Promise<string> => 
           - Default size should be square (e.g., 512x512) unless the aspect ratio suggests otherwise.
     `;
 
-    const fullPrompt = `Create an SVG representation of the following object/item: "${prompt}"`;
+    let fullPrompt = `Create an SVG representation of the following object/item: "${prompt}"`;
+    
+    if (referenceUrl) {
+      fullPrompt += `\n\nPlease use the following URL as a reference for the design: ${referenceUrl}`;
+    }
+
+    let contents: any = fullPrompt;
+    
+    if (reference) {
+      if (reference.type === 'image' || reference.type === 'pdf') {
+        contents = {
+          parts: [
+            { inlineData: { mimeType: reference.mimeType, data: reference.data } },
+            { text: fullPrompt + "\n\nPlease use the attached file as a reference for the SVG." }
+          ]
+        };
+      } else if (reference.type === 'text') {
+        contents = `${fullPrompt}\n\nPlease use the following text as a reference:\n\n${reference.data}`;
+      }
+    }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.1-pro-preview',
-      contents: fullPrompt,
+      model: 'gemini-3-flash-preview',
+      contents: contents,
       config: {
         systemInstruction: systemPrompt,
         temperature: 0.4, // Lower temperature for more precise code generation
         topP: 0.95,
         topK: 40,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        tools: [{ urlContext: {} }]
       },
     });
 

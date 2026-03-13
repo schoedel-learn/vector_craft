@@ -11,9 +11,11 @@ interface HeaderProps {
   onLogin: () => void;
   onLogout: () => void;
   onOpenHistory: () => void;
+  isUnlimited?: boolean;
+  onOpenAdminPanel?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, onOpenHistory }) => {
+export const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, onOpenHistory, isUnlimited, onOpenAdminPanel }) => {
   return (
     <header className="w-full py-6 px-4 border-b border-base-700 bg-[#1C2A3C] sticky top-0 z-50 shadow-sm">
       <div className="max-w-5xl mx-auto flex items-center justify-between">
@@ -53,6 +55,16 @@ export const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, onOpenH
         <div className="flex items-center gap-4">
           {user ? (
             <>
+              {isUnlimited && onOpenAdminPanel && (
+                <button
+                  onClick={onOpenAdminPanel}
+                  className="flex items-center gap-2 text-sm font-medium text-brand-400 hover:text-brand-300 transition-colors"
+                  title="Admin Panel"
+                >
+                  <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
+                  <span className="hidden sm:inline">Admin</span>
+                </button>
+              )}
               <button
                 onClick={onOpenHistory}
                 className="flex items-center gap-2 text-sm font-medium text-white hover:text-gray-300 transition-colors"

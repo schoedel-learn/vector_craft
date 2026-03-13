@@ -9,7 +9,8 @@ import { SvgPreview } from './components/SvgPreview';
 import { Header } from './components/Header';
 import { HistoryModal } from './components/HistoryModal';
 import { Footer } from './components/Footer';
-import { generateSvgFromPrompt } from './services/geminiService';
+import { AdminPanel } from './components/AdminPanel';
+import { generateSvgFromPrompt, ReferenceFile } from './services/geminiService';
 import { GeneratedSvg, GenerationStatus, ApiError } from './types';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
@@ -70,6 +71,10 @@ const App: React.FC = () => {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [history, setHistory] = useState<GeneratedSvg[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [referenceUrl, setReferenceUrl] = useState('');
+  const [isClientUser, setIsClientUser] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -81,6 +86,23 @@ const App: React.FC = () => {
         setDoc(doc(db, 'users', currentUser.uid), { role: 'user' }, { merge: true }).catch(e => {
           console.error("Failed to bootstrap user role", e);
         });
+
+        if (currentUser.email === 'schoedelb@gmail.com') {
+          // Bootstrap the first client user if admin logs in
+          const firstClientDoc = doc(db, 'allowed_clients', 'j.pacheco.0860@gmail.com');
+          setDoc(firstClientDoc, { addedBy: 'system', timestamp: Date.now() }, { merge: true }).catch(console.error);
+        }
+
+        if (currentUser.email) {
+          const clientDocRef = doc(db, 'allowed_clients', currentUser.email);
+          onSnapshot(clientDocRef, (docSnap) => {
+            setIsClientUser(docSnap.exists());
+          }, (err) => {
+            console.error("Failed to check client status", err);
+          });
+        }
+      } else {
+        setIsClientUser(false);
       }
     });
     return () => unsubscribe();
@@ -127,11 +149,14 @@ const App: React.FC = () => {
     }
   };
 
-  const RECENT_LIMIT = 10;
-  const HOURS_LIMIT = 72;
+  const isUnlimited = user?.email === 'schoedelb@gmail.com';
+  const isClient = isClientUser || isUnlimited; // Admin has all client features
+  
+  const RECENT_LIMIT = isClient ? 25 : 5;
+  const HOURS_LIMIT = isClient ? 24 : 72;
   const limitTime = Date.now() - (HOURS_LIMIT * 60 * 60 * 1000);
   const recentGenerationsCount = history.filter(svg => svg.timestamp > limitTime).length;
-  const generationsLeft = Math.max(0, RECENT_LIMIT - recentGenerationsCount);
+  const generationsLeft = isUnlimited ? Infinity : Math.max(0, RECENT_LIMIT - recentGenerationsCount);
 
   const handleGenerate = async (prompt: string) => {
     if (!user) {
@@ -143,7 +168,7 @@ const App: React.FC = () => {
       return;
     }
 
-    if (generationsLeft <= 0) {
+    if (!isUnlimited && generationsLeft <= 0) {
       setError({
         message: "Generation Limit Reached",
         details: `You have reached your limit of ${RECENT_LIMIT} generations per ${HOURS_LIMIT} hours. Please try again later.`
@@ -157,13 +182,52 @@ const App: React.FC = () => {
     setCurrentSvg(null);
 
     try {
-      const svgContent = await generateSvgFromPrompt(prompt);
+      let reference: ReferenceFile | undefined = undefined;
+      
+      if (selectedFile) {
+        if (selectedFile.type.startsWith('image/') || selectedFile.type === 'application/pdf') {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = reader.result as string;
+              resolve(result.split(',')[1]); // Remove data:image/...;base64,
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(selectedFile);
+          });
+          reference = { type: selectedFile.type === 'application/pdf' ? 'pdf' : 'image', mimeType: selectedFile.type, data: base64 };
+        } else if (selectedFile.name.endsWith('.docx')) {
+          const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as ArrayBuffer);
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(selectedFile);
+          });
+          const mammoth = await import('mammoth');
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          reference = { type: 'text', mimeType: 'text/plain', data: result.value };
+        } else {
+          const text = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsText(selectedFile);
+          });
+          reference = { type: 'text', mimeType: selectedFile.type, data: text };
+        }
+      }
+
+      const svgContent = await generateSvgFromPrompt(prompt, reference, referenceUrl);
+      
+      // Clear selected file after successful generation
+      setSelectedFile(null);
+      setReferenceUrl('');
       
       // Validate the generated SVG content
       const parser = new DOMParser();
-      const doc = parser.parseFromString(svgContent, "image/svg+xml");
-      const parserError = doc.querySelector("parsererror");
-      const isSvg = doc.documentElement.tagName.toLowerCase() === 'svg';
+      const svgDoc = parser.parseFromString(svgContent, "image/svg+xml");
+      const parserError = svgDoc.querySelector("parsererror");
+      const isSvg = svgDoc.documentElement.tagName.toLowerCase() === 'svg';
 
       if (parserError || !isSvg) {
         throw new Error("The AI generated invalid SVG code. Please try a different prompt or try again.");
@@ -211,6 +275,8 @@ const App: React.FC = () => {
         onLogin={handleLogin} 
         onLogout={handleLogout} 
         onOpenHistory={() => setIsHistoryOpen(true)} 
+        isUnlimited={isUnlimited}
+        onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
       />
       
       <main className="flex-1 pb-20 pt-8">
@@ -219,6 +285,14 @@ const App: React.FC = () => {
           status={status} 
           user={user}
           generationsLeft={generationsLeft}
+          isUnlimited={isUnlimited}
+          isClient={isClient}
+          hoursLimit={HOURS_LIMIT}
+          totalLimit={RECENT_LIMIT}
+          selectedFile={selectedFile}
+          onFileSelect={setSelectedFile}
+          referenceUrl={referenceUrl}
+          onReferenceUrlChange={setReferenceUrl}
           onLogin={handleLogin}
         />
         
@@ -262,6 +336,11 @@ const App: React.FC = () => {
         onClose={() => setIsHistoryOpen(false)} 
         history={history} 
         onRegenerate={handleGenerate} 
+      />
+
+      <AdminPanel 
+        isOpen={isAdminPanelOpen} 
+        onClose={() => setIsAdminPanelOpen(false)} 
       />
     </div>
   );

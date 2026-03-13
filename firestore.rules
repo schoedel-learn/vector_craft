@@ -19,6 +19,12 @@ service cloud.firestore {
     //   - content: string (required, max length 100000)
     //   - timestamp: number (required, positive)
     //
+    // Collection: allowed_clients
+    // Document ID: {email}
+    // Fields:
+    //   - addedBy: string
+    //   - timestamp: number
+    //
     // ===============================================================
 
     // ===============================================================
@@ -87,9 +93,21 @@ service cloud.firestore {
              isPositive('timestamp');
     }
 
+    function isValidAllowedClient(data) {
+      return hasOnlyAllowedFields(['addedBy', 'timestamp']) &&
+             data.addedBy is string &&
+             isPositive('timestamp');
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
+
+    match /allowed_clients/{email} {
+      allow read: if isAuthenticated() && (request.auth.token.email == email || isAdmin());
+      allow write: if isAdmin() && isValidAllowedClient(request.resource.data);
+      allow delete: if isAdmin();
+    }
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
