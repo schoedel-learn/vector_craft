@@ -76,7 +76,7 @@ export const SvgPreview: React.FC<SvgPreviewProps> = ({ data }) => {
         </div>
 
         {/* Canvas Area */}
-        <div className="p-8 flex items-center justify-center bg-[#101A28] min-h-[400px]">
+        <div className="p-8 flex items-center justify-center bg-[#101A28] min-h-[400px] relative">
           {showCode ? (
             <div className="w-full max-w-4xl h-full max-h-[500px] overflow-auto bg-base-950 rounded-xl border border-white/10 p-4 relative text-left">
               <div className="sticky top-0 flex justify-end mb-2">
@@ -96,11 +96,26 @@ export const SvgPreview: React.FC<SvgPreviewProps> = ({ data }) => {
               </pre>
             </div>
           ) : (
-            <div 
-              ref={containerRef}
-              className="w-full max-w-[512px] h-auto transition-all duration-500 transform hover:scale-[1.02] filter drop-shadow-2xl"
-              dangerouslySetInnerHTML={{ __html: data.content }} 
-            />
+            <>
+              <div className="absolute top-4 right-4">
+                <button
+                  onClick={handleCopyCode}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-base-300 bg-base-800/50 hover:bg-base-700 hover:text-white rounded-lg transition-colors shadow-sm border border-white/5 backdrop-blur-sm"
+                  title="Copy SVG Code"
+                >
+                  {copied ? (
+                    <><span className="material-symbols-outlined text-[14px] text-green-400">check</span> Copied!</>
+                  ) : (
+                    <><span className="material-symbols-outlined text-[14px]">content_copy</span> Copy SVG</>
+                  )}
+                </button>
+              </div>
+              <div 
+                ref={containerRef}
+                className="w-full max-w-[512px] h-auto transition-all duration-500 transform hover:scale-[1.02] filter drop-shadow-2xl"
+                dangerouslySetInnerHTML={{ __html: data.content }} 
+              />
+            </>
           )}
         </div>
         
