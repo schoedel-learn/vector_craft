@@ -41,15 +41,17 @@ export const Footer: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={handleEmailCopy}
-            className="hover:text-gray-300 transition-colors flex items-center gap-1 group relative text-white"
+            className="hover:text-gray-300 transition-colors flex items-center justify-center group relative text-white"
             title="Copy email address"
           >
             <span>{emailParts[0]}&#64;{emailParts[1]}</span>
-            {copied ? (
-              <span className="material-symbols-outlined text-[16px] text-green-400">check</span>
-            ) : (
-              <span className="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity">content_copy</span>
-            )}
+            <span className="absolute -right-6 flex items-center">
+              {copied ? (
+                <span className="material-symbols-outlined text-[16px] text-green-400">check</span>
+              ) : (
+                <span className="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity">content_copy</span>
+              )}
+            </span>
           </button>
         </div>
       </div>
