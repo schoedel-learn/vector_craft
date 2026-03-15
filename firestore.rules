@@ -10,6 +10,9 @@ service cloud.firestore {
     // Document ID: {userId}
     // Fields:
     //   - role: string (required, 'admin' or 'user')
+    //   - avatarConfig: map (optional)
+    //     - style: string
+    //     - seed: string
     //
     // Collection: users/{userId}/svgs
     // Document ID: {svgId}
@@ -24,6 +27,16 @@ service cloud.firestore {
     // Fields:
     //   - addedBy: string
     //   - timestamp: number
+    //
+    // Collection: users/{userId}/spaces
+    // Document ID: {spaceId}
+    // Fields:
+    //   - uid: string (required, must match userId)
+    //   - title: string (required, max length 100)
+    //   - description: string (optional, max length 500)
+    //   - prompt: string (optional, max length 2000)
+    //   - knowledge: list (optional, max size 10)
+    //   - timestamp: number (required, positive)
     //
     // ===============================================================
 
@@ -81,15 +94,34 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['role']) &&
-             data.role in ['admin', 'user'];
+      return hasOnlyAllowedFields(['role', 'avatarConfig']) &&
+             data.role in ['admin', 'user'] &&
+             (!('avatarConfig' in data) || (
+               data.avatarConfig is map &&
+               data.avatarConfig.keys().hasOnly(['style', 'seed']) &&
+               data.avatarConfig.style is string &&
+               data.avatarConfig.seed is string &&
+               data.avatarConfig.style.size() < 50 &&
+               data.avatarConfig.seed.size() < 100
+             ));
     }
 
     function isValidSvgDocument(data) {
-      return hasOnlyAllowedFields(['uid', 'prompt', 'content', 'timestamp']) &&
+      return hasOnlyAllowedFields(['uid', 'prompt', 'content', 'timestamp', 'spaceId']) &&
              data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
              validStringLength('prompt', 1, 1000) &&
              validStringLength('content', 1, 200000) &&
+             isPositive('timestamp') &&
+             (!('spaceId' in data) || data.spaceId is string || data.spaceId == null);
+    }
+
+    function isValidSpace(data) {
+      return hasOnlyAllowedFields(['uid', 'title', 'description', 'prompt', 'knowledge', 'timestamp']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
+             validStringLength('title', 1, 100) &&
+             (!('description' in data) || validStringLength('description', 0, 500)) &&
+             (!('prompt' in data) || validStringLength('prompt', 0, 2000)) &&
+             (!('knowledge' in data) || data.knowledge is list) &&
              isPositive('timestamp');
     }
 
@@ -123,6 +155,19 @@ service cloud.firestore {
                          request.resource.data.uid == userId;
         allow update: if isOwner(userId) && 
                          isValidSvgDocument(request.resource.data) && 
+                         uidNotModified() && 
+                         request.resource.data.uid == userId;
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /spaces/{spaceId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && 
+                         isValidSpace(request.resource.data) && 
+                         uidUnchanged() && 
+                         request.resource.data.uid == userId;
+        allow update: if isOwner(userId) && 
+                         isValidSpace(request.resource.data) && 
                          uidNotModified() && 
                          request.resource.data.uid == userId;
         allow delete: if isOwner(userId) || isAdmin();

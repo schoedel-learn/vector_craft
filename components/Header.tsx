@@ -8,18 +8,36 @@ import { LogoIcon } from './LogoIcon';
 
 interface HeaderProps {
   user: any;
+  userProfile?: any;
   onLogin: () => void;
   onLogout: () => void;
   onOpenHistory: () => void;
+  onOpenAvatarSelector?: () => void;
   isUnlimited?: boolean;
   onOpenAdminPanel?: () => void;
+  onLogoClick?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, onOpenHistory, isUnlimited, onOpenAdminPanel }) => {
+export const Header: React.FC<HeaderProps> = ({ 
+  user, 
+  userProfile,
+  onLogin, 
+  onLogout, 
+  onOpenHistory, 
+  onOpenAvatarSelector,
+  isUnlimited, 
+  onOpenAdminPanel, 
+  onLogoClick 
+}) => {
+  const avatarSvg = userProfile?.avatarSvg;
+
   return (
     <header className="w-full py-6 px-4 border-b border-base-700 bg-[#1C2A3C] sticky top-0 z-50 shadow-sm">
       <div className="max-w-5xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <button 
+          onClick={onLogoClick}
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity text-left"
+        >
           <div className="flex items-center justify-center">
             <img 
               src="/logo.png" 
@@ -51,14 +69,14 @@ export const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, onOpenH
               </span>
             </div>
           </div>
-        </div>
+        </button>
         <div className="flex items-center gap-4">
           {user ? (
             <>
               {isUnlimited && onOpenAdminPanel && (
                 <button
                   onClick={onOpenAdminPanel}
-                  className="flex items-center gap-2 text-sm font-medium text-brand-400 hover:text-brand-300 transition-colors"
+                  className="flex items-center gap-2 text-sm font-medium text-[#00A2FD] hover:opacity-80 transition-colors"
                   title="Admin Panel"
                 >
                   <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
@@ -75,11 +93,27 @@ export const Header: React.FC<HeaderProps> = ({ user, onLogin, onLogout, onOpenH
               </button>
               <div className="h-4 w-px bg-base-300 hidden sm:block"></div>
               <div className="flex items-center gap-3">
-                <img 
-                  src={user.photoURL || `https://ui-avatars.com/api/?name=${user.email}`} 
-                  alt="Avatar" 
-                  className="w-8 h-8 rounded-full border border-base-200"
-                />
+                <button 
+                  onClick={onOpenAvatarSelector}
+                  className="relative group"
+                  title="Customize Avatar"
+                >
+                  {avatarSvg ? (
+                    <div 
+                      className="w-11 h-11 rounded-full border border-base-200 bg-base-800 overflow-hidden group-hover:border-brand-400 transition-colors flex items-center justify-center [&>svg]:w-full [&>svg]:h-full"
+                      dangerouslySetInnerHTML={{ __html: avatarSvg }}
+                    />
+                  ) : (
+                    <img 
+                      src={user.photoURL || `https://ui-avatars.com/api/?name=${user.email}`} 
+                      alt="Avatar" 
+                      className="w-11 h-11 rounded-full border border-base-200 group-hover:border-brand-400 transition-colors object-cover"
+                    />
+                  )}
+                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#00A2FD] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+                    <span className="material-symbols-outlined text-[10px] text-base-950 font-bold">edit</span>
+                  </div>
+                </button>
                 <button
                   onClick={onLogout}
                   className="text-sm text-white hover:text-gray-300 transition-colors flex items-center justify-center"

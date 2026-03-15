@@ -31,15 +31,49 @@ const SUGGESTIONS_POOL = [
   'Robot Dog', 'Hoverboard', 'Arcade Machine', 'Crystal Ball'
 ];
 
+const PHRASES_POOL = [
+  'Minimalist streetwear hoodie design with logo',
+  'Modern SaaS landing page hero layout',
+  'Mobile banking app dashboard UI design',
+  'Low-poly fantasy warrior character for games',
+  'Elegant Italian restaurant menu with gold accents',
+  'Cinematic mountain landscape during golden hour',
+  'Flat style productivity icon set design',
+  'Cozy cyberpunk apartment interior with neon',
+  'Stylized 3D profile avatar for social media',
+  'Clean portfolio website header with menu',
+  'Social media feed mobile interface design',
+  'Retro pixel art game background with clouds',
+  'Vintage graphic t-shirt print with retro sun',
+  'Modern cafe branding and logo design',
+  'Minimalist weather app icon with sun clouds'
+];
+
 export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, user, generationsLeft, isUnlimited, isClient, hoursLimit, totalLimit, selectedFile, onFileSelect, referenceUrl, onReferenceUrlChange, onLogin }) => {
   const [input, setInput] = useState('');
   const [currentSuggestions, setCurrentSuggestions] = useState<string[]>([]);
+  const [placeholderSuggestion, setPlaceholderSuggestion] = useState('');
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
 
   useEffect(() => {
-    const shuffled = [...SUGGESTIONS_POOL].sort(() => 0.5 - Math.random());
-    setCurrentSuggestions(shuffled.slice(0, 4));
+    const shuffledSuggestions = [...SUGGESTIONS_POOL].sort(() => 0.5 - Math.random());
+    const shuffledPhrases = [...PHRASES_POOL].sort(() => 0.5 - Math.random());
+    setCurrentSuggestions(shuffledSuggestions.slice(0, 4));
+    setPlaceholderSuggestion(shuffledPhrases[0]);
   }, [user]);
+
+  const isLoading = status === GenerationStatus.LOADING;
+  const isLimitReached = user && !isUnlimited && generationsLeft <= 0;
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e as any);
+    } else if (e.key === 'Tab' && !input.trim() && placeholderSuggestion && user && !isLimitReached) {
+      e.preventDefault();
+      setInput(placeholderSuggestion);
+    }
+  };
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -48,13 +82,10 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
     }
   }, [input, status, onGenerate]);
 
-  const isLoading = status === GenerationStatus.LOADING;
-  const isLimitReached = user && !isUnlimited && generationsLeft <= 0;
-
   return (
     <div className="w-full max-w-2xl mx-auto mt-12 px-4">
       <div className="text-center mb-8">
-        <h2 className="text-4xl font-extrabold text-white mb-3 font-display">
+        <h2 className="text-4xl font-extrabold text-white mb-3 font-mono">
           What do you want to create?
         </h2>
         <p className="text-base-300 text-lg">
@@ -71,7 +102,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                 onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
                 className={`flex items-center justify-center w-12 h-12 rounded-xl border transition-colors ${
                   showAttachmentMenu || referenceUrl || selectedFile
-                    ? 'bg-brand-500/10 border-brand-500/30 text-brand-400'
+                    ? 'bg-[#00A2FD]/10 border-[#00A2FD]/30 text-[#00A2FD]'
                     : 'bg-[#101A28] border-white/10 text-base-400 hover:text-white hover:bg-white/5'
                 }`}
                 title="Add reference"
@@ -81,7 +112,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
               
               {showAttachmentMenu && (
                 <div className="absolute top-full left-0 mt-2 bg-[#1A2634] border border-white/10 rounded-xl p-3 shadow-2xl z-20 flex flex-col gap-3 min-w-[280px]">
-                  <div className="flex items-center bg-black/20 rounded-lg px-3 py-2 border border-white/5 focus-within:border-brand-500/50 transition-colors">
+                  <div className="flex items-center bg-black/20 rounded-lg px-3 py-2 border border-white/5 focus-within:border-[#00A2FD]/50 transition-colors">
                     <span className="material-symbols-outlined text-[18px] text-base-400 mr-2">link</span>
                     <input
                       type="url"
@@ -98,7 +129,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                       <div className="flex items-center gap-2 overflow-hidden">
                         <span className="material-symbols-outlined text-[18px] text-base-400">upload_file</span>
                         {selectedFile ? (
-                          <span className="text-sm text-brand-400 truncate">{selectedFile.name}</span>
+                          <span className="text-sm text-[#00A2FD] truncate">{selectedFile.name}</span>
                         ) : (
                           <span className="text-sm text-base-400">Upload file</span>
                         )}
@@ -113,7 +144,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                         />
                         <label 
                           htmlFor="file-upload" 
-                          className="cursor-pointer text-brand-400 hover:text-brand-300 text-sm font-medium px-2 py-1 rounded hover:bg-brand-500/10 transition-colors"
+                          className="cursor-pointer text-[#00A2FD] hover:opacity-80 text-sm font-medium px-2 py-1 rounded hover:bg-[#00A2FD]/10 transition-colors"
                         >
                           Browse
                         </label>
@@ -135,47 +166,51 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
           )}
 
           <div className="flex-1 relative flex items-center bg-[#101A28] rounded-xl border border-white/10 shadow-lg overflow-hidden p-2">
-            <div className="pl-4 text-[#00A2FD] flex items-center justify-center">
+            <div className="pl-4 text-[#00A2FD] flex items-center justify-center flex-shrink-0">
               <span className="material-symbols-outlined text-[24px]">magic_button</span>
             </div>
-            <input
-              type="text"
+            <textarea
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={!user ? "Sign in to start creating..." : isLimitReached ? "Generation limit reached..." : "e.g. A futuristic cyberpunk helmet with neon lights..."}
-              className="flex-1 bg-transparent border-none outline-none text-white placeholder-base-500 px-4 py-3 text-lg disabled:opacity-50"
+              onChange={(e) => {
+                setInput(e.target.value);
+                // Auto-resize logic
+                e.target.style.height = 'auto';
+                e.target.style.height = `${e.target.scrollHeight}px`;
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder={!user ? "Sign in to start creating..." : isLimitReached ? "Limit reached..." : `e.g. ${placeholderSuggestion}...`}
+              className="flex-1 bg-transparent border-none outline-none text-white placeholder-base-500 placeholder:italic pl-4 pr-[46px] py-4 text-[10px] sm:text-[15px] text-center disabled:opacity-50 min-w-0 resize-none max-h-[200px] leading-tight overflow-y-auto flex items-center"
               disabled={isLoading || !user || isLimitReached}
+              rows={1}
             />
             {!user ? (
               <button
                 type="button"
                 onClick={onLogin}
-                className="flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-200 bg-brand-500 text-white hover:bg-brand-400 active:scale-95 shadow-lg shadow-brand-500/20"
+                className="flex items-center justify-center w-12 h-12 rounded-lg font-semibold transition-all duration-200 bg-[#00A2FD] text-white hover:opacity-90 active:scale-95 shadow-lg shadow-[#00A2FD]/20 flex-shrink-0"
               >
-                <span className="hidden sm:inline">Sign In</span>
                 <span className="material-symbols-outlined text-[20px]">login</span>
               </button>
             ) : (
               <button
-                type="submit"
+                type="button"
+                onClick={() => {
+                  if (input.trim() && status !== GenerationStatus.LOADING && !isLimitReached) {
+                    onGenerate(input.trim());
+                  }
+                }}
                 disabled={!input.trim() || isLoading || isLimitReached}
                 className={`
-                  flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-200
+                  flex items-center justify-center w-12 h-12 rounded-lg font-semibold transition-all duration-200 flex-shrink-0
                   ${!input.trim() || isLoading || isLimitReached
                     ? 'bg-base-700 text-base-500 cursor-not-allowed' 
-                    : 'bg-brand-500 text-white hover:bg-brand-400 active:scale-95 shadow-lg shadow-brand-500/20'}
+                    : 'bg-[#00A2FD] text-white hover:opacity-90 active:scale-95 shadow-lg shadow-[#00A2FD]/20'}
                 `}
               >
                 {isLoading ? (
-                  <>
-                    <span className="material-symbols-outlined text-[20px] animate-spin">progress_activity</span>
-                    <span className="hidden sm:inline">Crafting...</span>
-                  </>
+                  <span className="material-symbols-outlined text-[20px] animate-spin">progress_activity</span>
                 ) : (
-                  <>
-                    <span className="hidden sm:inline">Generate</span>
-                    <span className="material-symbols-outlined text-[20px]">send</span>
-                  </>
+                  <span className="material-symbols-outlined text-[24px]">arrow_forward</span>
                 )}
               </button>
             )}

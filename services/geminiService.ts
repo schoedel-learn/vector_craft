@@ -6,8 +6,8 @@
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 
 // Initialize the client
-// CRITICAL: We use process.env.API_KEY as per strict guidelines.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// CRITICAL: We use process.env.GEMINI_API_KEY as per strict guidelines.
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export interface ReferenceFile {
   type: 'image' | 'text' | 'pdf';
@@ -19,12 +19,20 @@ export interface ReferenceFile {
  * Generates an SVG string based on the user's prompt.
  * Uses 'gemini-3-flash-preview' for faster generation.
  */
-export const generateSvgFromPrompt = async (prompt: string, reference?: ReferenceFile, referenceUrl?: string): Promise<string> => {
+export const generateSvgFromPrompt = async (
+  prompt: string, 
+  reference?: ReferenceFile, 
+  referenceUrl?: string,
+  spacePrompt?: string,
+  spaceKnowledge?: any[]
+): Promise<string> => {
   try {
     const systemPrompt = `
       You are a world-class expert in Scalable Vector Graphics (SVG) design and coding. 
       Your task is to generate a high-quality, visually stunning, and detailed SVG based on the user's description of an object or item.
       
+      ${spacePrompt ? `Additional Guidance for this Space: ${spacePrompt}` : ''}
+
       Guidelines:
       1.  **Output Format**: Return ONLY the raw SVG code. Do not wrap it in markdown code blocks (e.g., no \`\`\`xml). Do not add any conversational text before or after.
       2.  **Quality**: Use gradients, proper pathing, and distinct colors to create depth and visual appeal. Avoid simple stroked lines unless requested. The style should be "flat art" or "material design" unless specified otherwise.
@@ -41,27 +49,43 @@ export const generateSvgFromPrompt = async (prompt: string, reference?: Referenc
       fullPrompt += `\n\nPlease use the following URL as a reference for the design: ${referenceUrl}`;
     }
 
-    let contents: any = fullPrompt;
+    const parts: any[] = [{ text: fullPrompt }];
+
+    // Add space knowledge if available
+    if (spaceKnowledge && spaceKnowledge.length > 0) {
+      parts.push({ text: "\n\nAdditional reference knowledge from the current Space:" });
+      for (const k of spaceKnowledge) {
+        if (k.type === 'url') {
+          parts.push({ text: `- Reference URL: ${k.value}` });
+        } else if (k.type === 'file') {
+          // Note: In a real app, we'd need to handle base64 data here if we want to send it as inlineData
+          // For now, we'll assume the value is a description or we handle it if it's base64
+          if (k.value.startsWith('data:')) {
+             const [header, data] = k.value.split(',');
+             const mimeType = header.split(':')[1].split(';')[0];
+             parts.push({ inlineData: { mimeType, data } });
+          } else {
+             parts.push({ text: `- Reference File (${k.name}): ${k.value}` });
+          }
+        }
+      }
+    }
     
     if (reference) {
       if (reference.type === 'image' || reference.type === 'pdf') {
-        contents = {
-          parts: [
-            { inlineData: { mimeType: reference.mimeType, data: reference.data } },
-            { text: fullPrompt + "\n\nPlease use the attached file as a reference for the SVG." }
-          ]
-        };
+        parts.unshift({ inlineData: { mimeType: reference.mimeType, data: reference.data } });
+        parts.push({ text: "\n\nPlease use the attached file as a primary reference for the SVG." });
       } else if (reference.type === 'text') {
-        contents = `${fullPrompt}\n\nPlease use the following text as a reference:\n\n${reference.data}`;
+        parts.push({ text: `\n\nPlease use the following text as a primary reference:\n\n${reference.data}` });
       }
     }
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: contents,
+      contents: { parts },
       config: {
         systemInstruction: systemPrompt,
-        temperature: 0.4, // Lower temperature for more precise code generation
+        temperature: 0.4, 
         topP: 0.95,
         topK: 40,
         thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },

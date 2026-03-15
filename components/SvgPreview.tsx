@@ -4,16 +4,19 @@
 */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { GeneratedSvg } from '../types';
+import { GeneratedSvg, Space } from '../types';
 
 interface SvgPreviewProps {
   data: GeneratedSvg | null;
+  selectedSpace?: Space | null;
+  onSaveToSpace?: (svgId: string, spaceId: string) => void;
 }
 
-export const SvgPreview: React.FC<SvgPreviewProps> = ({ data }) => {
+export const SvgPreview: React.FC<SvgPreviewProps> = ({ data, selectedSpace, onSaveToSpace }) => {
   const [copied, setCopied] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
   const [showCode, setShowCode] = useState(false);
+  const [isSavedToSpace, setIsSavedToSpace] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Reset copied state when data changes
@@ -21,9 +24,17 @@ export const SvgPreview: React.FC<SvgPreviewProps> = ({ data }) => {
     setCopied(false);
     setCopiedPrompt(false);
     setShowCode(false);
+    setIsSavedToSpace(data?.spaceId ? true : false);
   }, [data]);
 
   if (!data) return null;
+
+  const handleSaveToSpace = () => {
+    if (selectedSpace && onSaveToSpace) {
+      onSaveToSpace(data.id, selectedSpace.id);
+      setIsSavedToSpace(true);
+    }
+  };
 
   const handleDownload = () => {
     const blob = new Blob([data.content], { type: 'image/svg+xml' });
@@ -58,6 +69,21 @@ export const SvgPreview: React.FC<SvgPreviewProps> = ({ data }) => {
             Result: <span className="text-base-500">"{data.prompt}"</span>
           </h3>
           <div className="flex gap-2">
+            {selectedSpace && !isSavedToSpace && (
+              <button
+                onClick={handleSaveToSpace}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-brand-400 bg-brand-400/10 border border-brand-400/20 rounded-lg hover:bg-brand-400/20 transition-colors shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[18px]">bookmark</span>
+                <span className="hidden sm:inline">Save to {selectedSpace.title}</span>
+              </button>
+            )}
+            {isSavedToSpace && (
+              <div className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-brand-400 bg-brand-400/5 border border-brand-400/10 rounded-lg">
+                <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                <span className="hidden sm:inline">Saved to Space</span>
+              </div>
+            )}
             <button
               onClick={() => setShowCode(!showCode)}
               className={`p-2 rounded-lg transition-colors group relative flex items-center justify-center ${showCode ? 'text-brand-400 bg-brand-400/10' : 'text-base-400 hover:text-white hover:bg-white/10'}`}

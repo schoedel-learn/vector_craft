@@ -33,9 +33,53 @@
         "timestamp": {
           "type": "number",
           "description": "The timestamp of generation"
+        },
+        "spaceId": {
+          "type": "string",
+          "description": "The ID of the space this SVG is associated with"
         }
       },
       "required": ["uid", "prompt", "content", "timestamp"]
+    },
+    "Space": {
+      "title": "Space",
+      "description": "A reference point for generations",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The user ID of the creator"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the space"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the space"
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Guidance prompt for this space"
+        },
+        "knowledge": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "enum": ["file", "url"] },
+              "value": { "type": "string" },
+              "name": { "type": "string" },
+              "mimeType": { "type": "string" }
+            }
+          }
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["uid", "title", "timestamp"]
     }
   },
   "firestore": {
@@ -46,6 +90,10 @@
     "/users/{userId}/svgs/{svgId}": {
       "schema": { "$ref": "SvgDocument" },
       "description": "Generated SVGs for a user"
+    },
+    "/users/{userId}/spaces/{spaceId}": {
+      "schema": { "$ref": "Space" },
+      "description": "User spaces"
     }
   }
 }

@@ -10,11 +10,14 @@ import { Header } from './components/Header';
 import { HistoryModal } from './components/HistoryModal';
 import { Footer } from './components/Footer';
 import { AdminPanel } from './components/AdminPanel';
+import { SpacesManager } from './components/SpacesManager';
+import { AvatarSelector } from './components/AvatarSelector';
 import { generateSvgFromPrompt, ReferenceFile } from './services/geminiService';
-import { GeneratedSvg, GenerationStatus, ApiError } from './types';
+import { getAvatarSvg } from './services/avatarService';
+import { GeneratedSvg, GenerationStatus, ApiError, Space, UserProfile } from './types';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { collection, query, where, orderBy, onSnapshot, doc, setDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, setDoc, updateDoc } from 'firebase/firestore';
 
 enum OperationType {
   CREATE = 'create',
@@ -75,14 +78,37 @@ const App: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [referenceUrl, setReferenceUrl] = useState('');
   const [isClientUser, setIsClientUser] = useState(false);
+  const [selectedSpace, setSelectedSpace] = useState<Space | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setIsAuthReady(true);
       
-      // Ensure user document exists (basic bootstrap)
       if (currentUser) {
+        // Listen to user profile
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        onSnapshot(userDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const profile: UserProfile = {
+              uid: currentUser.uid,
+              email: currentUser.email || '',
+              avatarConfig: data.avatarConfig,
+              isUnlimited: data.role === 'admin'
+            };
+            
+            // Add generated SVG to profile for UI
+            if (profile.avatarConfig) {
+              (profile as any).avatarSvg = getAvatarSvg(profile.avatarConfig.style, profile.avatarConfig.seed);
+            }
+            
+            setUserProfile(profile);
+          }
+        });
+
         setDoc(doc(db, 'users', currentUser.uid), { role: 'user' }, { merge: true }).catch(e => {
           console.error("Failed to bootstrap user role", e);
         });
@@ -149,7 +175,18 @@ const App: React.FC = () => {
     }
   };
 
-  const isUnlimited = user?.email === 'schoedelb@gmail.com';
+  const handleSaveAvatar = async (config: { style: string; seed: string }) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        avatarConfig: config
+      });
+    } catch (error) {
+      console.error("Error updating avatar:", error);
+    }
+  };
+
+  const isUnlimited = user?.email === 'schoedelb@gmail.com' || userProfile?.isUnlimited;
   const isClient = isClientUser || isUnlimited; // Admin has all client features
   
   const RECENT_LIMIT = isClient ? 25 : 5;
@@ -217,7 +254,13 @@ const App: React.FC = () => {
         }
       }
 
-      const svgContent = await generateSvgFromPrompt(prompt, reference, referenceUrl);
+      const svgContent = await generateSvgFromPrompt(
+        prompt, 
+        reference, 
+        referenceUrl,
+        selectedSpace?.prompt,
+        selectedSpace?.knowledge
+      );
       
       // Clear selected file after successful generation
       setSelectedFile(null);
@@ -240,7 +283,8 @@ const App: React.FC = () => {
         id,
         content: svgContent,
         prompt: prompt,
-        timestamp
+        timestamp,
+        spaceId: selectedSpace?.id
       };
       
       setCurrentSvg(newSvg);
@@ -253,7 +297,8 @@ const App: React.FC = () => {
             uid: user.uid,
             prompt,
             content: svgContent,
-            timestamp
+            timestamp,
+            spaceId: selectedSpace?.id || null
           });
         } catch (dbError) {
           handleFirestoreError(dbError, OperationType.CREATE, path);
@@ -268,18 +313,46 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSaveToSpace = async (svgId: string, spaceId: string) => {
+    if (!user) return;
+    try {
+      const svgRef = doc(db, `users/${user.uid}/svgs`, svgId);
+      await updateDoc(svgRef, { spaceId });
+      
+      // Update local state if needed
+      if (currentSvg && currentSvg.id === svgId) {
+        setCurrentSvg({ ...currentSvg, spaceId });
+      }
+    } catch (error) {
+      console.error("Error saving to space:", error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#101A28] text-base-50 font-sans selection:bg-brand-500/30 flex flex-col">
       <Header 
         user={user} 
+        userProfile={userProfile}
         onLogin={handleLogin} 
         onLogout={handleLogout} 
         onOpenHistory={() => setIsHistoryOpen(true)} 
+        onOpenAvatarSelector={() => setIsAvatarSelectorOpen(true)}
         isUnlimited={isUnlimited}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
+        onLogoClick={() => setSelectedSpace(null)}
       />
       
       <main className="flex-1 pb-20 pt-8">
+        <div className="max-w-2xl mx-auto px-4">
+          {isClient && user && (
+            <SpacesManager 
+              userId={user.uid} 
+              selectedSpaceId={selectedSpace?.id || null} 
+              onSelectSpace={setSelectedSpace} 
+            />
+          )}
+        </div>
+
         <InputSection 
           onGenerate={handleGenerate} 
           status={status} 
@@ -311,6 +384,8 @@ const App: React.FC = () => {
         {status === GenerationStatus.SUCCESS && currentSvg && (
           <SvgPreview 
             data={currentSvg} 
+            selectedSpace={selectedSpace}
+            onSaveToSpace={handleSaveToSpace}
           />
         )}
         
@@ -341,6 +416,14 @@ const App: React.FC = () => {
       <AdminPanel 
         isOpen={isAdminPanelOpen} 
         onClose={() => setIsAdminPanelOpen(false)} 
+        userId={user?.uid || ''}
+      />
+
+      <AvatarSelector 
+        isOpen={isAvatarSelectorOpen}
+        onClose={() => setIsAvatarSelectorOpen(false)}
+        currentConfig={userProfile?.avatarConfig}
+        onSave={handleSaveAvatar}
       />
     </div>
   );
