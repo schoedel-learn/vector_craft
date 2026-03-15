@@ -28,7 +28,20 @@ const SUGGESTIONS_POOL = [
   'Cyberpunk Helmet', 'Vintage Radio', 'Mechanical Keyboard', 'Bonsai Tree',
   'Magic Potion Bottle', 'Steampunk Goggles', 'Neon Sign', 'Coffee Maker',
   'Electric Guitar', 'Vinyl Record Player', 'Telescope', 'Microscope',
-  'Robot Dog', 'Hoverboard', 'Arcade Machine', 'Crystal Ball'
+  'Robot Dog', 'Hoverboard', 'Arcade Machine', 'Crystal Ball',
+  'Ancient Compass', 'Hot Air Balloon', 'Gramophone', 'Pocket Watch',
+  'Typewriter', 'Feather Quill', 'Hourglass', 'Lighthouse',
+  'Anchor', 'Compass Rose', 'Globe', 'Microphone',
+  'Saxophone', 'Grand Piano', 'Cello', 'Violin',
+  'Drum Set', 'Synthesizer', 'Cassette Tape', 'Walkman',
+  'Game Boy', 'Polaroid Camera', 'Film Projector', 'Binoculars',
+  'Compass', 'Magnifying Glass', 'Skeleton Key', 'Treasure Chest',
+  'Sword', 'Shield', 'Knight Helmet', 'Dragon Statue',
+  'Wizard Staff', 'Crystal Shard', 'Magic Lamp', 'Flying Carpet',
+  'Potion Cauldron', 'Spell Book', 'Owl', 'Wolf',
+  'Lion', 'Eagle', 'Phoenix', 'Unicorn',
+  'Pegasus', 'Griffin', 'Kraken', 'Spaceship',
+  'Satellite', 'Astronaut Helmet'
 ];
 
 const PHRASES_POOL = [
@@ -46,7 +59,57 @@ const PHRASES_POOL = [
   'Retro pixel art game background with clouds',
   'Vintage graphic t-shirt print with retro sun',
   'Modern cafe branding and logo design',
-  'Minimalist weather app icon with sun clouds'
+  'Minimalist weather app icon with sun clouds',
+  'Abstract geometric pattern for textile design',
+  'Isometric city block with tiny cars',
+  'Watercolor portrait of a mysterious woman',
+  'Oil painting of a stormy sea at night',
+  'Pop art style illustration of a soda can',
+  'Surreal landscape with floating islands',
+  'Art Deco poster for a luxury hotel',
+  'Bauhaus inspired graphic design poster',
+  'Vaporwave aesthetic sunset with palm trees',
+  'Gothic cathedral architecture sketch',
+  'Victorian era botanical illustration',
+  'Japanese ukiyo-e style wave painting',
+  'Nordic minimalist living room interior',
+  'Industrial loft office space design',
+  'Bohemian style bedroom with plants',
+  'Mediterranean villa patio with fountain',
+  'Futuristic neon city street view',
+  'Post-apocalyptic wasteland environment',
+  'Steampunk airship flying through clouds',
+  'Ancient Egyptian tomb wall painting',
+  'Mayan temple ruins in the jungle',
+  'Greek temple on a sunny hilltop',
+  'Roman colosseum arena illustration',
+  'Medieval castle on a snowy mountain',
+  'Zen garden with sand and stones',
+  'Cherry blossom trees in a park',
+  'Autumn forest with colorful leaves',
+  'Tropical beach with turquoise water',
+  'Desert dunes under a starry sky',
+  'Arctic icebergs in the ocean',
+  'Underwater coral reef with fish',
+  'Outer space nebula with stars',
+  'Black and white street photography',
+  'Macro photo of a butterfly wing',
+  'Double exposure of a forest and face',
+  'Glitch art portrait with neon colors',
+  'Paper cut art of a forest scene',
+  'Stained glass window design',
+  'Mosaic tile pattern for a floor',
+  'Mandala design with intricate details',
+  'Calligraphy quote with ink splatters',
+  'Graffiti tag on a brick wall',
+  'Comic book panel with action scene',
+  'Manga character design with big eyes',
+  'Chibi style cute animal illustration',
+  'Low-poly 3D model of a sports car',
+  'Voxel art style house with garden',
+  'Claymation style character for animation',
+  'Puppet theater stage with curtains',
+  'Origami crane on a wooden table'
 ];
 
 export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, user, generationsLeft, isUnlimited, isClient, hoursLimit, totalLimit, selectedFile, onFileSelect, referenceUrl, onReferenceUrlChange, onLogin }) => {
@@ -85,7 +148,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
   return (
     <div className="w-full max-w-2xl mx-auto mt-12 px-4">
       <div className="text-center mb-8">
-        <h2 className="text-4xl font-extrabold text-white mb-3 font-mono">
+        <h2 className="text-4xl font-extrabold text-white mb-3 font-sans">
           What do you want to create?
         </h2>
         <p className="text-base-300 text-lg">
@@ -179,7 +242,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
               }}
               onKeyDown={handleKeyDown}
               placeholder={!user ? "Sign in to start creating..." : isLimitReached ? "Limit reached..." : `e.g. ${placeholderSuggestion}...`}
-              className="flex-1 bg-transparent border-none outline-none text-white placeholder-base-500 placeholder:italic pl-4 pr-[46px] py-4 text-[10px] sm:text-[15px] text-center disabled:opacity-50 min-w-0 resize-none max-h-[200px] leading-tight overflow-y-auto flex items-center"
+              className="flex-1 bg-transparent border-none outline-none text-white placeholder-base-500 placeholder:italic pl-4 pr-[46px] py-4 text-[10px] sm:text-[15px] disabled:opacity-50 min-w-0 resize-none max-h-[200px] leading-tight overflow-y-auto"
               disabled={isLoading || !user || isLimitReached}
               rows={1}
             />
