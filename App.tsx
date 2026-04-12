@@ -16,7 +16,7 @@ import { generateSvgFromPrompt, ReferenceFile } from './services/geminiService';
 import { getAvatarSvg } from './services/avatarService';
 import { GeneratedSvg, GenerationStatus, ApiError, Space, UserProfile } from './types';
 import { auth, db, googleProvider } from './firebase';
-import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, orderBy, onSnapshot, doc, setDoc, updateDoc } from 'firebase/firestore';
 
 enum OperationType {
@@ -72,6 +72,7 @@ const App: React.FC = () => {
   
   const [user, setUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [history, setHistory] = useState<GeneratedSvg[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
@@ -81,6 +82,14 @@ const App: React.FC = () => {
   const [selectedSpace, setSelectedSpace] = useState<Space | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = useState(false);
+
+  useEffect(() => {
+    // Handle the result of a redirect-based sign-in (fallback from popup)
+    getRedirectResult(auth).catch((error) => {
+      console.error("Redirect sign-in failed", error);
+      setLoginError(error?.message || "Sign-in failed. Please try again.");
+    });
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -160,10 +169,22 @@ const App: React.FC = () => {
   }, [user, isAuthReady]);
 
   const handleLogin = async () => {
+    setLoginError(null);
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error("Login failed", error);
+    } catch (error: any) {
+      if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/popup-cancelled-by-user') {
+        // Fall back to redirect-based sign-in when popup is blocked
+        try {
+          await signInWithRedirect(auth, googleProvider);
+        } catch (redirectError: any) {
+          console.error("Redirect sign-in failed", redirectError);
+          setLoginError(redirectError?.message || "Sign-in failed. Please try again.");
+        }
+      } else {
+        console.error("Login failed", error);
+        setLoginError(error?.message || "Sign-in failed. Please try again.");
+      }
     }
   };
 
@@ -368,6 +389,25 @@ const App: React.FC = () => {
           onReferenceUrlChange={setReferenceUrl}
           onLogin={handleLogin}
         />
+
+        {loginError && (
+          <div className="max-w-2xl mx-auto mt-4 px-4">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 text-red-200">
+              <span className="material-symbols-outlined text-red-400 text-[20px] flex-shrink-0 mt-0.5">error</span>
+              <div className="flex-1">
+                <h4 className="font-semibold text-red-400 font-display">Sign-in Failed</h4>
+                <p className="text-sm text-red-300/70 mt-1">{loginError}</p>
+              </div>
+              <button
+                onClick={() => setLoginError(null)}
+                className="text-red-400 hover:text-red-300 transition-colors flex-shrink-0"
+                title="Dismiss"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+          </div>
+        )}
         
         {status === GenerationStatus.ERROR && error && (
           <div className="max-w-2xl mx-auto mt-8 px-4">
