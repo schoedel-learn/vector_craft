@@ -25,7 +25,7 @@ export const Footer: React.FC = () => {
   return (
     <footer className="bg-[#1C2A3C] text-white w-full mt-auto flex flex-col">
       <hr className="border-[#101A28] w-[90%] max-w-5xl mx-auto" />
-      <div className="py-8 px-4 flex flex-col items-center justify-center gap-2 text-sm">
+      <div className="py-8 px-4 flex flex-col items-center justify-center gap-3 text-sm">
         <div className="flex items-center gap-1">
           <a
             href="#"
@@ -38,18 +38,22 @@ export const Footer: React.FC = () => {
           <span className="mx-1">&middot;</span>
           <span>&copy; {new Date().getFullYear()}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4 text-xs text-base-400">
+          <a href="/privacy.html" className="hover:text-white transition-colors">Privacy Policy</a>
+          <span className="text-base-600">|</span>
+          <a href="/terms.html" className="hover:text-white transition-colors">Terms of Service</a>
+          <span className="text-base-600">|</span>
           <button
             onClick={handleEmailCopy}
-            className="hover:text-gray-300 transition-colors flex items-center justify-center group relative text-white"
+            className="hover:text-white transition-colors flex items-center justify-center group relative"
             title="Copy email address"
           >
             <span>{emailParts[0]}&#64;{emailParts[1]}</span>
-            <span className="absolute -right-6 flex items-center">
+            <span className="absolute -right-5 flex items-center">
               {copied ? (
-                <span className="material-symbols-outlined text-[16px] text-green-400">check</span>
+                <span className="material-symbols-outlined text-[14px] text-green-400">check</span>
               ) : (
-                <span className="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity">content_copy</span>
+                <span className="material-symbols-outlined text-[14px] opacity-0 group-hover:opacity-100 transition-opacity">content_copy</span>
               )}
             </span>
           </button>
