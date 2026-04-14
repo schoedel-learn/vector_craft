@@ -61,17 +61,12 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
           <div className="flex flex-col">
-            <h1 className="text-2xl font-bold text-white tracking-tight font-display leading-[0.9]">
+            <h1 className="text-2xl font-bold text-white tracking-tight font-display leading-none">
               Schoedel.
             </h1>
-            <div className="flex items-baseline gap-0.5">
-              <span className="text-xl font-medium text-white tracking-tight font-display leading-none">
-                Design
-              </span>
-              <span className="text-[10px] font-bold text-white uppercase tracking-wider relative -top-2">
-                AI
-              </span>
-            </div>
+            <span className="text-lg font-medium text-white tracking-tight font-display leading-none">
+              Design
+            </span>
           </div>
         </button>
         <div className="flex items-center gap-4">

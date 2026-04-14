@@ -147,10 +147,28 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
 
   return (
     <div className="w-full max-w-2xl mx-auto mt-12 px-4">
-      <div className="text-center mb-8">
-        <h2 className="text-4xl font-extrabold text-white mb-3 font-sans">
-          What do you want to create?
+      {/* Hero Section */}
+      <div className="text-center mb-12">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-brand-500/10 border border-brand-500/20 mb-6 shadow-lg shadow-brand-500/5">
+          <img src="/logo.png" alt="Schoedel Design Vector AI" className="w-12 h-12 object-contain" />
+        </div>
+        <h2 className="text-5xl sm:text-6xl font-extrabold text-white mb-3 font-display tracking-tight leading-[1.1]">
+          Schoedel Design
+          <span className="block bg-gradient-to-r from-brand-400 to-brand-300 bg-clip-text text-transparent">
+            Vector AI
+          </span>
         </h2>
+        <p className="text-base-400 text-lg max-w-md mx-auto">
+          AI-powered SVG vector art generation from text prompts
+        </p>
+        <div className="mt-6 w-16 h-px bg-gradient-to-r from-transparent via-brand-500/40 to-transparent mx-auto"></div>
+      </div>
+
+      {/* Prompt Section */}
+      <div className="text-center mb-8">
+        <h3 className="text-3xl font-bold text-white mb-3 font-sans">
+          What do you want to create?
+        </h3>
         <p className="text-base-300 text-lg">
           Describe an object, icon, or scene, and we'll render it as vector art.
         </p>
