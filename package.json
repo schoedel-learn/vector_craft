@@ -10,7 +10,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@dicebear/collection": "^9.4.0",
+    "@dicebear/collection": "^9.4.2",
     "@dicebear/core": "^9.4.0",
     "@google/genai": "^1.29.1",
     "firebase": "^12.10.0",
