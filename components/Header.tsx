@@ -1,7 +1,7 @@
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
-*/
+ */
 
 import React from 'react';
 import { LogoIcon } from './LogoIcon';
@@ -16,6 +16,8 @@ interface HeaderProps {
   isUnlimited?: boolean;
   onOpenAdminPanel?: () => void;
   onLogoClick?: () => void;
+  hasApiKey?: boolean;
+  onManageApiKey?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -27,7 +29,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAvatarSelector,
   isUnlimited, 
   onOpenAdminPanel, 
-  onLogoClick 
+  onLogoClick,
+  hasApiKey,
+  onManageApiKey
 }) => {
   const avatarSvg = userProfile?.avatarSvg;
 
@@ -81,6 +85,20 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
                   <span className="hidden sm:inline">Admin</span>
+                </button>
+              )}
+              {onManageApiKey && (
+                <button
+                  onClick={onManageApiKey}
+                  className={`flex items-center gap-2 text-sm font-medium transition-colors ${
+                    hasApiKey 
+                      ? 'text-base-400 hover:text-white' 
+                      : 'text-amber-400 hover:text-amber-300'
+                  }`}
+                  title={hasApiKey ? "Manage API Key" : "Set up API Key"}
+                >
+                  <span className="material-symbols-outlined text-[18px]">key</span>
+                  <span className="hidden sm:inline">{hasApiKey ? 'API Key' : 'Add Key'}</span>
                 </button>
               )}
               <button

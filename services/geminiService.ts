@@ -1,13 +1,9 @@
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
-*/
+ */
 
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
-
-// Initialize the client
-// CRITICAL: We use process.env.GEMINI_API_KEY as per strict guidelines.
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export interface ReferenceFile {
   type: 'image' | 'text' | 'pdf';
@@ -18,15 +14,24 @@ export interface ReferenceFile {
 /**
  * Generates an SVG string based on the user's prompt.
  * Uses 'gemini-3-flash-preview' for faster generation.
+ * The API key is provided per-call (BYOK architecture).
  */
 export const generateSvgFromPrompt = async (
+  apiKey: string,
   prompt: string, 
   reference?: ReferenceFile, 
   referenceUrl?: string,
   spacePrompt?: string,
   spaceKnowledge?: any[]
 ): Promise<string> => {
+  if (!apiKey) {
+    throw new Error("No Gemini API key provided. Please add your API key in settings.");
+  }
+
   try {
+    // Create a fresh client with the user's own API key
+    const ai = new GoogleGenAI({ apiKey });
+
     const systemPrompt = `
       You are a world-class expert in Scalable Vector Graphics (SVG) design and coding. 
       Your task is to generate a high-quality, visually stunning, and detailed SVG based on the user's description of an object or item.
@@ -58,8 +63,6 @@ export const generateSvgFromPrompt = async (
         if (k.type === 'url') {
           parts.push({ text: `- Reference URL: ${k.value}` });
         } else if (k.type === 'file') {
-          // Note: In a real app, we'd need to handle base64 data here if we want to send it as inlineData
-          // For now, we'll assume the value is a description or we handle it if it's base64
           if (k.value.startsWith('data:')) {
              const [header, data] = k.value.split(',');
              const mimeType = header.split(':')[1].split(';')[0];
@@ -108,6 +111,16 @@ export const generateSvgFromPrompt = async (
     }
 
   } catch (error: any) {
+    // Provide user-friendly messages for common API key errors
+    if (error.message?.includes('API_KEY_INVALID') || error.message?.includes('API key not valid')) {
+      throw new Error("Your Gemini API key is invalid. Please check it in your settings.");
+    }
+    if (error.message?.includes('PERMISSION_DENIED')) {
+      throw new Error("API key permission denied. Make sure your key has access to the Gemini API.");
+    }
+    if (error.message?.includes('RESOURCE_EXHAUSTED') || error.message?.includes('quota')) {
+      throw new Error("Your Gemini API quota has been exceeded. The free tier resets daily.");
+    }
     console.error("Gemini API Error:", error);
     throw new Error(error.message || "Failed to generate SVG.");
   }

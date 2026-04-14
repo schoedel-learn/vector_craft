@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# AI assistant config (local only)
+GEMINI.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

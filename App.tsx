@@ -1,7 +1,7 @@
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
-*/
+ */
 
 import React, { useState, useEffect } from 'react';
 import { InputSection } from './components/InputSection';
@@ -12,12 +12,15 @@ import { Footer } from './components/Footer';
 import { AdminPanel } from './components/AdminPanel';
 import { SpacesManager } from './components/SpacesManager';
 import { AvatarSelector } from './components/AvatarSelector';
+import { ApiKeySetup } from './components/ApiKeySetup';
 import { generateSvgFromPrompt, ReferenceFile } from './services/geminiService';
 import { getAvatarSvg } from './services/avatarService';
 import { GeneratedSvg, GenerationStatus, ApiError, Space, UserProfile } from './types';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, orderBy, onSnapshot, doc, setDoc, updateDoc } from 'firebase/firestore';
+
+const API_KEY_STORAGE_KEY = 'vectorcraft_gemini_api_key';
 
 enum OperationType {
   CREATE = 'create',
@@ -83,6 +86,23 @@ const App: React.FC = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = useState(false);
 
+  // BYOK: API key stored in localStorage
+  const [geminiApiKey, setGeminiApiKey] = useState<string | null>(() => {
+    return localStorage.getItem(API_KEY_STORAGE_KEY);
+  });
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+
+  const handleSaveApiKey = (key: string) => {
+    if (key) {
+      localStorage.setItem(API_KEY_STORAGE_KEY, key);
+      setGeminiApiKey(key);
+    } else {
+      localStorage.removeItem(API_KEY_STORAGE_KEY);
+      setGeminiApiKey(null);
+    }
+    setIsApiKeyModalOpen(false);
+  };
+
   useEffect(() => {
     // Handle the result of a redirect-based sign-in (fallback from popup)
     getRedirectResult(auth).catch((error) => {
@@ -121,12 +141,6 @@ const App: React.FC = () => {
         setDoc(doc(db, 'users', currentUser.uid), { role: 'user' }, { merge: true }).catch(e => {
           console.error("Failed to bootstrap user role", e);
         });
-
-        if (currentUser.email === 'schoedelb@gmail.com') {
-          // Bootstrap the first client user if admin logs in
-          const firstClientDoc = doc(db, 'allowed_clients', 'j.pacheco.0860@gmail.com');
-          setDoc(firstClientDoc, { addedBy: 'system', timestamp: Date.now() }, { merge: true }).catch(console.error);
-        }
 
         if (currentUser.email) {
           const clientDocRef = doc(db, 'allowed_clients', currentUser.email);
@@ -226,6 +240,15 @@ const App: React.FC = () => {
       return;
     }
 
+    if (!geminiApiKey) {
+      setError({
+        message: "API Key Required",
+        details: "Please add your Gemini API key to start generating."
+      });
+      setStatus(GenerationStatus.ERROR);
+      return;
+    }
+
     if (!isUnlimited && generationsLeft <= 0) {
       setError({
         message: "Generation Limit Reached",
@@ -276,6 +299,7 @@ const App: React.FC = () => {
       }
 
       const svgContent = await generateSvgFromPrompt(
+        geminiApiKey,
         prompt, 
         reference, 
         referenceUrl,
@@ -349,6 +373,9 @@ const App: React.FC = () => {
     }
   };
 
+  // Show the API key setup screen if logged in but no key is set
+  const needsApiKey = user && !geminiApiKey;
+
   return (
     <div className="min-h-screen bg-[#101A28] text-base-50 font-sans selection:bg-brand-500/30 flex flex-col">
       <Header 
@@ -361,86 +388,94 @@ const App: React.FC = () => {
         isUnlimited={isUnlimited}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onLogoClick={() => setSelectedSpace(null)}
+        hasApiKey={!!geminiApiKey}
+        onManageApiKey={() => setIsApiKeyModalOpen(true)}
       />
       
       <main className="flex-1 pb-20 pt-8">
-        <div className="max-w-2xl mx-auto px-4">
-          {isClient && user && (
-            <SpacesManager 
-              userId={user.uid} 
-              selectedSpaceId={selectedSpace?.id || null} 
-              onSelectSpace={setSelectedSpace} 
+        {needsApiKey ? (
+          <ApiKeySetup onSave={handleSaveApiKey} />
+        ) : (
+          <>
+            <div className="max-w-2xl mx-auto px-4">
+              {isClient && user && (
+                <SpacesManager 
+                  userId={user.uid} 
+                  selectedSpaceId={selectedSpace?.id || null} 
+                  onSelectSpace={setSelectedSpace} 
+                />
+              )}
+            </div>
+
+            <InputSection 
+              onGenerate={handleGenerate} 
+              status={status} 
+              user={user}
+              generationsLeft={generationsLeft}
+              isUnlimited={isUnlimited}
+              isClient={isClient}
+              hoursLimit={HOURS_LIMIT}
+              totalLimit={RECENT_LIMIT}
+              selectedFile={selectedFile}
+              onFileSelect={setSelectedFile}
+              referenceUrl={referenceUrl}
+              onReferenceUrlChange={setReferenceUrl}
+              onLogin={handleLogin}
             />
-          )}
-        </div>
 
-        <InputSection 
-          onGenerate={handleGenerate} 
-          status={status} 
-          user={user}
-          generationsLeft={generationsLeft}
-          isUnlimited={isUnlimited}
-          isClient={isClient}
-          hoursLimit={HOURS_LIMIT}
-          totalLimit={RECENT_LIMIT}
-          selectedFile={selectedFile}
-          onFileSelect={setSelectedFile}
-          referenceUrl={referenceUrl}
-          onReferenceUrlChange={setReferenceUrl}
-          onLogin={handleLogin}
-        />
-
-        {loginError && (
-          <div className="max-w-2xl mx-auto mt-4 px-4">
-            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 text-red-200">
-              <span className="material-symbols-outlined text-red-400 text-[20px] flex-shrink-0 mt-0.5">error</span>
-              <div className="flex-1">
-                <h4 className="font-semibold text-red-400 font-display">Sign-in Failed</h4>
-                <p className="text-sm text-red-300/70 mt-1">{loginError}</p>
+            {loginError && (
+              <div className="max-w-2xl mx-auto mt-4 px-4">
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 text-red-200">
+                  <span className="material-symbols-outlined text-red-400 text-[20px] flex-shrink-0 mt-0.5">error</span>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-red-400 font-display">Sign-in Failed</h4>
+                    <p className="text-sm text-red-300/70 mt-1">{loginError}</p>
+                  </div>
+                  <button
+                    onClick={() => setLoginError(null)}
+                    className="text-red-400 hover:text-red-300 transition-colors flex-shrink-0"
+                    title="Dismiss"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">close</span>
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={() => setLoginError(null)}
-                className="text-red-400 hover:text-red-300 transition-colors flex-shrink-0"
-                title="Dismiss"
-              >
-                <span className="material-symbols-outlined text-[18px]">close</span>
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {status === GenerationStatus.ERROR && error && (
-          <div className="max-w-2xl mx-auto mt-8 px-4">
-            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 text-red-200">
-              <span className="material-symbols-outlined text-red-400 text-[20px] flex-shrink-0 mt-0.5">error</span>
-              <div>
-                <h4 className="font-semibold text-red-400 font-display">{error.message}</h4>
-                <p className="text-sm text-red-300/70 mt-1">{error.details}</p>
+            )}
+            
+            {status === GenerationStatus.ERROR && error && (
+              <div className="max-w-2xl mx-auto mt-8 px-4">
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 text-red-200">
+                  <span className="material-symbols-outlined text-red-400 text-[20px] flex-shrink-0 mt-0.5">error</span>
+                  <div>
+                    <h4 className="font-semibold text-red-400 font-display">{error.message}</h4>
+                    <p className="text-sm text-red-300/70 mt-1">{error.details}</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {status === GenerationStatus.SUCCESS && currentSvg && (
-          <SvgPreview 
-            data={currentSvg} 
-            selectedSpace={selectedSpace}
-            onSaveToSpace={handleSaveToSpace}
-          />
-        )}
-        
-        {/* Empty State / Placeholder */}
-        {status === GenerationStatus.IDLE && (
-          <div className="max-w-2xl mx-auto mt-16 text-center px-4 opacity-50 pointer-events-none select-none">
-             <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-base-800/50 border border-white/5 mb-4">
-                <svg className="w-12 h-12 text-base-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                   <circle cx="8.5" cy="8.5" r="1.5" />
-                   <polyline points="21 15 16 10 5 21" />
-                </svg>
-             </div>
-             <p className="text-base-400 text-sm">Generated artwork will appear here</p>
-          </div>
+            {status === GenerationStatus.SUCCESS && currentSvg && (
+              <SvgPreview 
+                data={currentSvg} 
+                selectedSpace={selectedSpace}
+                onSaveToSpace={handleSaveToSpace}
+              />
+            )}
+            
+            {/* Empty State / Placeholder */}
+            {status === GenerationStatus.IDLE && (
+              <div className="max-w-2xl mx-auto mt-16 text-center px-4 opacity-50 pointer-events-none select-none">
+                 <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-base-800/50 border border-white/5 mb-4">
+                    <svg className="w-12 h-12 text-base-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                       <circle cx="8.5" cy="8.5" r="1.5" />
+                       <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                 </div>
+                 <p className="text-base-400 text-sm">Generated artwork will appear here</p>
+              </div>
+            )}
+          </>
         )}
       </main>
 
@@ -465,6 +500,16 @@ const App: React.FC = () => {
         currentConfig={userProfile?.avatarConfig}
         onSave={handleSaveAvatar}
       />
+
+      {/* API Key management modal (for updating/removing an existing key) */}
+      {isApiKeyModalOpen && (
+        <ApiKeySetup 
+          isModal 
+          currentKey={geminiApiKey} 
+          onSave={handleSaveApiKey} 
+          onClose={() => setIsApiKeyModalOpen(false)} 
+        />
+      )}
     </div>
   );
 };

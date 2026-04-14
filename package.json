@@ -1,7 +1,8 @@
 {
-  "name": "svg-generator",
+  "name": "vector-craft",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "AI-powered SVG vector art generator using Google Gemini. Sign in with Google, bring your own API key, and create stunning vector graphics from text prompts.",
   "type": "module",
   "scripts": {
     "dev": "vite",
