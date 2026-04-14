@@ -149,9 +149,6 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
     <div className="w-full max-w-2xl mx-auto mt-12 px-4">
       {/* Hero Section */}
       <div className="text-center mb-12">
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-brand-500/10 border border-brand-500/20 mb-6 shadow-lg shadow-brand-500/5">
-          <img src="/logo.png" alt="Schoedel Design Vector AI" className="w-12 h-12 object-contain" />
-        </div>
         <h2 className="text-5xl sm:text-6xl font-extrabold text-white mb-3 font-display tracking-tight leading-[1.1]">
           Schoedel Design
           <span className="block bg-gradient-to-r from-brand-400 to-brand-300 bg-clip-text text-transparent">
