@@ -3,9 +3,15 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from './firebase-applet-config.json';
 
+const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : null;
+const runtimeAuthDomain =
+  import.meta.env.VITE_FIREBASE_AUTH_DOMAIN?.trim() ||
+  (runtimeHost && runtimeHost !== 'localhost' && runtimeHost !== '127.0.0.1' ? runtimeHost : firebaseConfig.authDomain);
+
 const finalConfig = {
   ...firebaseConfig,
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
+  authDomain: runtimeAuthDomain
 };
 
 const app = initializeApp(finalConfig);
