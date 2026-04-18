@@ -2,7 +2,7 @@
   "name": "vector-craft",
   "private": true,
   "version": "1.0.0",
-  "description": "AI-powered SVG vector art generator using Google Gemini. Sign in with Google, bring your own API key, and create stunning vector graphics from text prompts.",
+  "description": "AI design workspace for generating production-ready SVG logos, icons, and illustrations with Google Gemini. Bring your own key, stay in full control, and ship scalable vector assets fast.",
   "type": "module",
   "scripts": {
     "dev": "vite",

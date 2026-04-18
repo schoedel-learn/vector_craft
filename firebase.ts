@@ -3,9 +3,17 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from './firebase-applet-config.json';
 
+const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : '';
+const isLocalhost = runtimeHost === 'localhost' || runtimeHost === '127.0.0.1' || runtimeHost === '::1';
+const runtimeAuthDomain =
+  import.meta.env.VITE_FIREBASE_AUTH_DOMAIN?.trim() ||
+  // Use deployed host for auth on custom domains; keep config authDomain for local development.
+  (runtimeHost && !isLocalhost ? runtimeHost : firebaseConfig.authDomain);
+
 const finalConfig = {
   ...firebaseConfig,
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY?.trim() || firebaseConfig.apiKey,
+  authDomain: runtimeAuthDomain
 };
 
 const app = initializeApp(finalConfig);
