@@ -1,7 +1,7 @@
 <div align="center">
   <img src="public/logo.png" alt="Vector Craft Logo" width="80" />
   <h1>Vector Craft</h1>
-  <p><strong>AI-powered SVG vector art generator</strong></p>
+  <p><strong>Turn ideas into production-ready SVGs with AI</strong></p>
   <p>
     <a href="https://art.schoedel.design">Live App</a> ·
     <a href="#features">Features</a> ·
@@ -14,9 +14,9 @@
 
 ## Overview
 
-Vector Craft turns natural language prompts into production-ready SVG vector graphics. Describe an object, icon, scene, or concept — and receive a downloadable, scalable vector in seconds.
+Vector Craft is an AI design workspace that turns natural language prompts into clean, production-ready SVG graphics in seconds. Create logos, icons, scenes, illustrations, and branded assets that stay fully editable and infinitely scalable.
 
-Built with React, TypeScript, and Google's Gemini API. Deployed at **[art.schoedel.design](https://art.schoedel.design)**.
+It combines prompt-based generation, reference-aware creation, organized workspaces, and account-synced history — all in a fast React app powered by Google's Gemini API at **[art.schoedel.design](https://art.schoedel.design)**.
 
 ## Features
 
