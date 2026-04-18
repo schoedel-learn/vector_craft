@@ -11,7 +11,7 @@ const runtimeAuthDomain =
 
 const finalConfig = {
   ...firebaseConfig,
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY?.trim() || firebaseConfig.apiKey,
   authDomain: runtimeAuthDomain
 };
 
