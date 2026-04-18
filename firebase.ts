@@ -4,9 +4,10 @@ import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from './firebase-applet-config.json';
 
 const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : null;
+const isLocalHost = runtimeHost === 'localhost' || runtimeHost === '127.0.0.1' || runtimeHost === '::1';
 const runtimeAuthDomain =
   import.meta.env.VITE_FIREBASE_AUTH_DOMAIN?.trim() ||
-  (runtimeHost && runtimeHost !== 'localhost' && runtimeHost !== '127.0.0.1' ? runtimeHost : firebaseConfig.authDomain);
+  (runtimeHost && !isLocalHost ? runtimeHost : firebaseConfig.authDomain);
 
 const finalConfig = {
   ...firebaseConfig,
