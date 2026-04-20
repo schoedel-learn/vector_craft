@@ -427,6 +427,7 @@ const App: React.FC = () => {
                   userId={user.uid} 
                   selectedSpaceId={selectedSpace?.id || null} 
                   onSelectSpace={setSelectedSpace} 
+                  apiKey={geminiApiKey || ''}
                 />
               )}
             </div>

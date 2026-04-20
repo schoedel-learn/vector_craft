@@ -12,6 +12,38 @@ export interface ReferenceFile {
 }
 
 /**
+ * Generates plain text content using the Gemini API.
+ * Useful for short prompts, descriptions, or refining user text.
+ */
+export const generateTextWithGemini = async (
+  apiKey: string,
+  prompt: string,
+  systemInstruction?: string
+): Promise<string> => {
+  if (!apiKey) {
+    throw new Error("No Gemini API key provided. Please add your API key in settings.");
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.1-flash-lite',
+      contents: { parts: [{ text: prompt }] },
+      config: {
+        systemInstruction: systemInstruction || "You are a helpful assistant.",
+        temperature: 0.7,
+      },
+    });
+
+    return response.text || '';
+  } catch (error: any) {
+    console.error("Gemini Text Generation Error:", error);
+    throw new Error(error.message || "Failed to generate text.");
+  }
+};
+
+/**
  * Generates an SVG string based on the user's prompt.
  * Uses 'gemini-3-flash-preview' for faster generation.
  * The API key is provided per-call (BYOK architecture).
