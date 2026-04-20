@@ -15,7 +15,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   value, 
   onChange, 
   options,
-  placeholder = "None (Auto)"
+  placeholder = "Default"
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -89,7 +89,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                   !value ? 'bg-[#00A2FD]/10 text-[#00A2FD] font-medium' : 'text-base-300 hover:bg-white/5 hover:text-white'
                 }`}
               >
-                <span className="italic">None (Auto)</span>
+                <span className="italic">Default</span>
                 {!value && <Check size={14} className="text-[#00A2FD]" />}
               </button>
               

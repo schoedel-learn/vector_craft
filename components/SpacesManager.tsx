@@ -3,6 +3,7 @@ import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc, order
 import { db } from '../firebase';
 import { Space, SpaceKnowledge } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { ChevronDown, Search, Check, Layers } from 'lucide-react';
 
 interface SpacesManagerProps {
   userId: string;
@@ -14,6 +15,20 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [spaceSearch, setSpaceSearch] = useState('');
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   
   // Form state
   const [title, setTitle] = useState('');
@@ -138,20 +153,97 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {spaces.map(space => (
-          <button
-            key={space.id}
-            onClick={() => onSelectSpace(selectedSpaceId === space.id ? null : space)}
-            className={`flex-shrink-0 px-4 py-2 rounded-xl border text-xs font-medium transition-all flex items-center gap-2 ${
-              selectedSpaceId === space.id 
-                ? 'bg-brand-400/10 border-brand-400/50 text-brand-400 shadow-[0_0_15px_rgba(129,140,248,0.1)]' 
-                : 'bg-base-900/50 border-white/5 text-base-400 hover:border-white/10'
-            }`}
-          >
-            {space.title}
-          </button>
-        ))}
+      <div className="relative z-50 mb-2" ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          className={`w-full flex items-center justify-between gap-3 bg-[#1A2634] border ${isDropdownOpen || selectedSpaceId ? 'border-brand-400/50 shadow-[0_0_15px_rgba(0,162,253,0.1)]' : 'border-white/10'} rounded-xl px-4 py-3 outline-none hover:border-brand-400/50 transition-all text-left group`}
+        >
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${selectedSpaceId ? 'bg-brand-400/20 text-brand-400' : 'bg-base-800 text-base-500 group-hover:text-brand-400 group-hover:bg-brand-400/10'} transition-colors`}>
+              <Layers size={16} />
+            </div>
+            <div className="flex flex-col truncate">
+              <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-base-500 mb-0.5">Current Space</span>
+              <span className={`text-sm font-medium truncate ${selectedSpaceId ? 'text-white' : 'text-base-400 italic'}`}>
+                {selectedSpace ? selectedSpace.title : "None (Global Namespace)"}
+              </span>
+            </div>
+          </div>
+          <ChevronDown 
+            size={18} 
+            className={`text-base-500 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180 text-brand-400' : 'group-hover:text-brand-400'}`}
+          />
+        </button>
+
+        <AnimatePresence>
+          {isDropdownOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -4, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4, scale: 0.98 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="absolute top-full mt-2 left-0 w-full bg-[#101A28] border border-white/10 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl"
+            >
+              <div className="p-2 border-b border-white/5 relative bg-[#1A2634]/50">
+                <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-base-500" />
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Search spaces..."
+                  value={spaceSearch}
+                  onChange={(e) => setSpaceSearch(e.target.value)}
+                  className="w-full bg-[#101A28] border border-white/5 rounded-lg text-sm text-white py-2 pl-9 pr-3 outline-none focus:border-brand-400/50 transition-colors placeholder:text-base-600"
+                />
+              </div>
+              
+              <div className="max-h-[240px] overflow-y-auto p-1.5 scrollbar-thin">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSelectSpace(null);
+                    setIsDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors flex items-center justify-between group ${
+                    !selectedSpaceId ? 'bg-brand-400/10 text-brand-400 font-medium' : 'text-base-300 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <span className="italic flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-base-500 inline-block"></span>
+                    None (Global Namespace)
+                  </span>
+                  {!selectedSpaceId && <Check size={16} className="text-brand-400" />}
+                </button>
+                
+                {spaces.filter(s => s.title.toLowerCase().includes(spaceSearch.toLowerCase())).map(space => (
+                  <button
+                    key={space.id}
+                    type="button"
+                    onClick={() => {
+                      onSelectSpace(space);
+                      setIsDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors flex items-center justify-between mt-1 group ${
+                      selectedSpaceId === space.id ? 'bg-brand-400/10 text-brand-400 font-medium' : 'text-base-200 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex flex-col truncate">
+                      <span className="truncate">{space.title}</span>
+                      {space.description && <span className="text-[10px] text-base-500 truncate mt-0.5">{space.description}</span>}
+                    </div>
+                    {selectedSpaceId === space.id && <Check size={16} className="text-brand-400 flex-shrink-0" />}
+                  </button>
+                ))}
+                
+                {spaces.filter(s => s.title.toLowerCase().includes(spaceSearch.toLowerCase())).length === 0 && (
+                  <div className="px-3 py-4 text-center text-sm text-base-500">
+                    No spaces found.
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {selectedSpace && (
