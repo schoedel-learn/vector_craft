@@ -12,6 +12,9 @@ import { ART_MEDIA, ART_SUPPORTS } from './artMedia';
 import { GRAPHIC_DESIGNERS } from './artDesigners';
 import { ILLUSTRATORS } from './artIllustrators';
 import { MASTER_ARTISTS } from './artArtists';
+import { CustomSelect } from './CustomSelect';
+import { SlidersHorizontal } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface InputSectionProps {
   onGenerate: (prompt: string) => void;
@@ -127,6 +130,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
   const [selectedDesigner, setSelectedDesigner] = useState('');
   const [selectedIllustrator, setSelectedIllustrator] = useState('');
   const [selectedArtist, setSelectedArtist] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [currentSuggestions, setCurrentSuggestions] = useState<string[]>([]);
   const [placeholderSuggestion, setPlaceholderSuggestion] = useState('');
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
@@ -339,104 +343,34 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
         </div>
         
         {user && (
-          <div className="flex flex-wrap items-center gap-3 pl-[56px] mt-1">
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-base-400 font-medium">Art Period:</label>
-              <select 
-                value={selectedStyle}
-                onChange={(e) => setSelectedStyle(e.target.value)}
-                className="bg-[#1A2634] border border-white/10 rounded-lg text-sm text-white py-1.5 px-2 outline-none focus:border-[#00A2FD]/50 transition-colors max-w-[140px] truncate"
-              >
-                <option value="">None (Auto)</option>
-                {ART_STYLES.map(style => (
-                  <option key={style} value={style}>{style}</option>
-                ))}
-              </select>
-            </div>
+          <div className="mt-2 text-center relative z-40">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="inline-flex items-center gap-2 text-sm text-base-400 hover:text-white transition-colors py-1 px-3 rounded-full hover:bg-white/5"
+            >
+              <SlidersHorizontal size={14} className={showAdvanced ? "text-[#00A2FD]" : ""} />
+              {showAdvanced ? "Hide advanced styles" : "Advanced styles & modifiers"}
+            </button>
             
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-base-400 font-medium ml-1">Movement:</label>
-              <select 
-                value={selectedMovement}
-                onChange={(e) => setSelectedMovement(e.target.value)}
-                className="bg-[#1A2634] border border-white/10 rounded-lg text-sm text-white py-1.5 px-2 outline-none focus:border-[#00A2FD]/50 transition-colors max-w-[140px] truncate"
-              >
-                <option value="">None (Auto)</option>
-                {ART_MOVEMENTS.map(movement => (
-                  <option key={movement} value={movement}>{movement}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-base-400 font-medium ml-1">Media:</label>
-              <select 
-                value={selectedMedia}
-                onChange={(e) => setSelectedMedia(e.target.value)}
-                className="bg-[#1A2634] border border-white/10 rounded-lg text-sm text-white py-1.5 px-2 outline-none focus:border-[#00A2FD]/50 transition-colors max-w-[140px] truncate"
-              >
-                <option value="">None (Auto)</option>
-                {ART_MEDIA.map(media => (
-                  <option key={media} value={media}>{media}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-base-400 font-medium ml-1">Support:</label>
-              <select 
-                value={selectedSupport}
-                onChange={(e) => setSelectedSupport(e.target.value)}
-                className="bg-[#1A2634] border border-white/10 rounded-lg text-sm text-white py-1.5 px-2 outline-none focus:border-[#00A2FD]/50 transition-colors max-w-[140px] truncate"
-              >
-                <option value="">None (Auto)</option>
-                {ART_SUPPORTS.map(support => (
-                  <option key={support} value={support}>{support}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-base-400 font-medium ml-1">Designer:</label>
-              <select 
-                value={selectedDesigner}
-                onChange={(e) => setSelectedDesigner(e.target.value)}
-                className="bg-[#1A2634] border border-white/10 rounded-lg text-sm text-white py-1.5 px-2 outline-none focus:border-[#00A2FD]/50 transition-colors max-w-[140px] truncate"
-              >
-                <option value="">None (Auto)</option>
-                {GRAPHIC_DESIGNERS.map(designer => (
-                  <option key={designer} value={designer}>{designer}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-base-400 font-medium ml-1">Illustrator:</label>
-              <select 
-                value={selectedIllustrator}
-                onChange={(e) => setSelectedIllustrator(e.target.value)}
-                className="bg-[#1A2634] border border-white/10 rounded-lg text-sm text-white py-1.5 px-2 outline-none focus:border-[#00A2FD]/50 transition-colors max-w-[140px] truncate"
-              >
-                <option value="">None (Auto)</option>
-                {ILLUSTRATORS.map(illustrator => (
-                  <option key={illustrator} value={illustrator}>{illustrator}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-base-400 font-medium ml-1">Artist:</label>
-              <select 
-                value={selectedArtist}
-                onChange={(e) => setSelectedArtist(e.target.value)}
-                className="bg-[#1A2634] border border-white/10 rounded-lg text-sm text-white py-1.5 px-2 outline-none focus:border-[#00A2FD]/50 transition-colors max-w-[140px] truncate"
-              >
-                <option value="">None (Auto)</option>
-                {MASTER_ARTISTS.map(artist => (
-                  <option key={artist} value={artist}>{artist}</option>
-                ))}
-              </select>
-            </div>
+            <AnimatePresence>
+              {showAdvanced && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, y: -10 }}
+                  animate={{ opacity: 1, height: 'auto', y: 0 }}
+                  exit={{ opacity: 0, height: 0, y: -10 }}
+                  className="mt-3 flex flex-wrap items-center justify-center gap-3 overflow-visible"
+                >
+                  <CustomSelect label="Art Period" value={selectedStyle} onChange={setSelectedStyle} options={ART_STYLES} />
+                  <CustomSelect label="Movement" value={selectedMovement} onChange={setSelectedMovement} options={ART_MOVEMENTS} />
+                  <CustomSelect label="Media" value={selectedMedia} onChange={setSelectedMedia} options={ART_MEDIA} />
+                  <CustomSelect label="Support" value={selectedSupport} onChange={setSelectedSupport} options={ART_SUPPORTS} />
+                  <CustomSelect label="Designer" value={selectedDesigner} onChange={setSelectedDesigner} options={GRAPHIC_DESIGNERS} />
+                  <CustomSelect label="Illustrator" value={selectedIllustrator} onChange={setSelectedIllustrator} options={ILLUSTRATORS} />
+                  <CustomSelect label="Artist" value={selectedArtist} onChange={setSelectedArtist} options={MASTER_ARTISTS} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
       </form>
