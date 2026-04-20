@@ -18,7 +18,7 @@ import { getAvatarSvg } from './services/avatarService';
 import { GeneratedSvg, GenerationStatus, ApiError, Space, UserProfile } from './types';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { collection, query, where, orderBy, onSnapshot, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const API_KEY_STORAGE_KEY = 'vectorcraft_gemini_api_key';
 
@@ -81,16 +81,22 @@ const App: React.FC = () => {
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [referenceUrl, setReferenceUrl] = useState('');
-  const [isClientUser, setIsClientUser] = useState(false);
   const [selectedSpace, setSelectedSpace] = useState<Space | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = useState(false);
+  const [remixRequest, setRemixRequest] = useState<{prompt: string, timestamp: number} | null>(null);
 
   // BYOK: API key stored in localStorage
   const [geminiApiKey, setGeminiApiKey] = useState<string | null>(() => {
     return localStorage.getItem(API_KEY_STORAGE_KEY);
   });
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(() => {
+    return sessionStorage.getItem('isApiKeyModalOpen') === 'true';
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('isApiKeyModalOpen', String(isApiKeyModalOpen));
+  }, [isApiKeyModalOpen]);
 
   const handleSaveApiKey = async (key: string) => {
     if (key) {
@@ -165,17 +171,6 @@ const App: React.FC = () => {
         setDoc(doc(db, 'users', currentUser.uid), { role: 'user' }, { merge: true }).catch(e => {
           console.error("Failed to bootstrap user role", e);
         });
-
-        if (currentUser.email) {
-          const clientDocRef = doc(db, 'allowed_clients', currentUser.email);
-          onSnapshot(clientDocRef, (docSnap) => {
-            setIsClientUser(docSnap.exists());
-          }, (err) => {
-            console.error("Failed to check client status", err);
-          });
-        }
-      } else {
-        setIsClientUser(false);
       }
     });
     return () => unsubscribe();
@@ -246,10 +241,10 @@ const App: React.FC = () => {
   };
 
   const isUnlimited = user?.email === 'schoedelb@gmail.com' || userProfile?.isUnlimited;
-  const isClient = isClientUser || isUnlimited; // Admin has all client features
+  const isClient = true; // Everyone acts as a client since they provide their own API key
   
-  const RECENT_LIMIT = isClient ? 25 : 5;
-  const HOURS_LIMIT = isClient ? 24 : 72;
+  const RECENT_LIMIT = 100;
+  const HOURS_LIMIT = 72;
   const limitTime = Date.now() - (HOURS_LIMIT * 60 * 60 * 1000);
   const recentGenerationsCount = history.filter(svg => svg.timestamp > limitTime).length;
   const generationsLeft = isUnlimited ? Infinity : Math.max(0, RECENT_LIMIT - recentGenerationsCount);
@@ -397,6 +392,23 @@ const App: React.FC = () => {
     }
   };
 
+  const handleRemix = async (svgId: string, prompt: string, keep: boolean) => {
+    if (!keep && user) {
+      try {
+        await deleteDoc(doc(db, `users/${user.uid}/svgs`, svgId));
+      } catch (error) {
+        console.error("Error deleting graphic:", error);
+      }
+    }
+    
+    // Set the prompt for the input section
+    setRemixRequest({ prompt, timestamp: Date.now() });
+    
+    // Note: keeping currentSvg visible allows the user to see what they are remixing.
+    // If we wanted to hide it, we'd do setCurrentSvg(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Show the API key setup screen if logged in but no key is set
   const needsApiKey = user && !geminiApiKey;
 
@@ -446,6 +458,7 @@ const App: React.FC = () => {
               referenceUrl={referenceUrl}
               onReferenceUrlChange={setReferenceUrl}
               onLogin={handleLogin}
+              remixRequest={remixRequest}
             />
 
             {loginError && (
@@ -484,6 +497,7 @@ const App: React.FC = () => {
                 data={currentSvg} 
                 selectedSpace={selectedSpace}
                 onSaveToSpace={handleSaveToSpace}
+                onRemix={handleRemix}
               />
             )}
             

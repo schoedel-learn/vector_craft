@@ -10,13 +10,15 @@ interface SvgPreviewProps {
   data: GeneratedSvg | null;
   selectedSpace?: Space | null;
   onSaveToSpace?: (svgId: string, spaceId: string) => void;
+  onRemix?: (svgId: string, prompt: string, keep: boolean) => void;
 }
 
-export const SvgPreview: React.FC<SvgPreviewProps> = ({ data, selectedSpace, onSaveToSpace }) => {
+export const SvgPreview: React.FC<SvgPreviewProps> = ({ data, selectedSpace, onSaveToSpace, onRemix }) => {
   const [copied, setCopied] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const [isSavedToSpace, setIsSavedToSpace] = useState(false);
+  const [isRemixing, setIsRemixing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Reset copied state when data changes
@@ -25,6 +27,7 @@ export const SvgPreview: React.FC<SvgPreviewProps> = ({ data, selectedSpace, onS
     setCopiedPrompt(false);
     setShowCode(false);
     setIsSavedToSpace(data?.spaceId ? true : false);
+    setIsRemixing(false);
   }, [data]);
 
   if (!data) return null;
@@ -98,6 +101,38 @@ export const SvgPreview: React.FC<SvgPreviewProps> = ({ data, selectedSpace, onS
               <span className="material-symbols-outlined text-[18px]">download</span>
               <span className="hidden sm:inline">Download</span>
             </button>
+            {!isRemixing ? (
+              <button
+                onClick={() => setIsRemixing(true)}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#00A2FD] bg-[#00A2FD]/10 border border-[#00A2FD]/20 rounded-lg hover:bg-[#00A2FD]/20 transition-colors shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[18px]">tune</span>
+                <span className="hidden sm:inline">Remix</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 bg-[#00A2FD]/10 px-2 py-1 rounded-lg border border-[#00A2FD]/20 animate-in fade-in slide-in-from-right-2 duration-200">
+                <span className="text-xs text-[#00A2FD] font-medium hidden sm:inline px-1">Original?</span>
+                <button
+                  onClick={() => { setIsRemixing(false); onRemix?.(data.id, data.prompt, true); }}
+                  className="px-2 py-1 text-xs font-medium text-white bg-[#00A2FD] hover:bg-[#00A2FD]/80 rounded transition-colors"
+                >
+                  Keep
+                </button>
+                <button
+                  onClick={() => { setIsRemixing(false); onRemix?.(data.id, data.prompt, false); }}
+                  className="px-2 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded transition-colors"
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => setIsRemixing(false)}
+                  className="p-1 text-base-400 hover:text-white transition-colors"
+                  title="Cancel"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

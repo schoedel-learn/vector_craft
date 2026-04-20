@@ -12,15 +12,21 @@ interface ApiKeySetupProps {
  * The key is stored in localStorage — never sent to any server.
  */
 export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onSave, currentKey, isModal = false, onClose }) => {
-  const [key, setKey] = useState(currentKey || '');
+  const [key, setKey] = useState(() => currentKey || sessionStorage.getItem('draftApiKey') || '');
   const [showKey, setShowKey] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = key.trim();
     if (trimmed) {
+      sessionStorage.removeItem('draftApiKey');
       onSave(trimmed);
     }
+  };
+
+  const handleKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setKey(e.target.value);
+    sessionStorage.setItem('draftApiKey', e.target.value);
   };
 
   const handleRemove = () => {
@@ -77,8 +83,6 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onSave, currentKey, is
                   Go to{' '}
                   <a
                     href="https://aistudio.google.com/apikey"
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="text-brand-400 hover:text-brand-300 underline underline-offset-2 transition-colors"
                   >
                     aistudio.google.com/apikey
@@ -91,7 +95,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onSave, currentKey, is
               </li>
               <li className="flex items-start gap-3">
                 <span className="w-6 h-6 rounded-full bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-[11px] font-bold text-brand-400 flex-shrink-0 mt-0.5">3</span>
-                <span>Copy the key and paste it below</span>
+                <span>Copy the key, return to this screen, and paste it below</span>
               </li>
             </ol>
           </div>
@@ -106,7 +110,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onSave, currentKey, is
                 <input
                   type={showKey ? 'text' : 'password'}
                   value={key}
-                  onChange={(e) => setKey(e.target.value)}
+                  onChange={handleKeyChange}
                   placeholder="AIza..."
                   className="w-full bg-base-950 border border-white/10 rounded-xl px-4 py-3.5 pr-12 text-sm focus:outline-none focus:border-brand-400/50 transition-all text-white placeholder:text-base-700 font-mono"
                   required

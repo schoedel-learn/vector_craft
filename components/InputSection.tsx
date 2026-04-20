@@ -13,7 +13,7 @@ import { GRAPHIC_DESIGNERS } from './artDesigners';
 import { ILLUSTRATORS } from './artIllustrators';
 import { MASTER_ARTISTS } from './artArtists';
 import { CustomSelect } from './CustomSelect';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface InputSectionProps {
@@ -30,6 +30,7 @@ interface InputSectionProps {
   referenceUrl: string;
   onReferenceUrlChange: (url: string) => void;
   onLogin: () => void;
+  remixRequest?: {prompt: string, timestamp: number} | null;
 }
 
 const SUGGESTIONS_POOL = [
@@ -121,7 +122,7 @@ const PHRASES_POOL = [
   'Origami crane on a wooden table'
 ];
 
-export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, user, generationsLeft, isUnlimited, isClient, hoursLimit, totalLimit, selectedFile, onFileSelect, referenceUrl, onReferenceUrlChange, onLogin }) => {
+export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, user, generationsLeft, isUnlimited, isClient, hoursLimit, totalLimit, selectedFile, onFileSelect, referenceUrl, onReferenceUrlChange, onLogin, remixRequest }) => {
   const [input, setInput] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('');
   const [selectedMovement, setSelectedMovement] = useState('');
@@ -135,6 +136,14 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
   const [placeholderSuggestion, setPlaceholderSuggestion] = useState('');
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
 
+  // Mutual exclusivity — only one style and one material at a time
+  const hasStyleSelected = !!(selectedStyle || selectedMovement || selectedDesigner || selectedIllustrator || selectedArtist);
+  const hasMaterialSelected = !!(selectedMedia || selectedSupport);
+  const activeStyleName = selectedStyle || selectedMovement || selectedDesigner || selectedIllustrator || selectedArtist || '';
+  const activeMaterialName = selectedMedia || selectedSupport || '';
+  const styleHint = activeStyleName ? `${activeStyleName} is active \u2014 clear it to choose a different style` : '';
+  const materialHint = activeMaterialName ? `${activeMaterialName} is active \u2014 clear it to choose a different material` : '';
+
   useEffect(() => {
     const shuffledSuggestions = [...SUGGESTIONS_POOL].sort(() => 0.5 - Math.random());
     const shuffledPhrases = [...PHRASES_POOL].sort(() => 0.5 - Math.random());
@@ -144,6 +153,12 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
 
   const isLoading = status === GenerationStatus.LOADING;
   const isLimitReached = user && !isUnlimited && generationsLeft <= 0;
+
+  useEffect(() => {
+    if (remixRequest) {
+      setInput(remixRequest.prompt);
+    }
+  }, [remixRequest]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -167,12 +182,10 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
         finalPrompt += `, meticulously executed using the specific methods, compositional approaches, and visual aesthetics that typify ${styleModifiers.join(' and ')}`;
       }
       
-      let mediaModifiers = [];
-      if (selectedMedia) mediaModifiers.push(selectedMedia);
-      if (selectedSupport) mediaModifiers.push(`on ${selectedSupport.toLowerCase()}`);
-      
-      if (mediaModifiers.length > 0) {
-        finalPrompt += `, directly simulating the distinct approaches, textures, and technical methods of creating art with ${mediaModifiers.join(' ')}`;
+      if (selectedMedia) {
+        finalPrompt += `, directly simulating the distinct approaches, textures, and technical methods of creating art with ${selectedMedia}`;
+      } else if (selectedSupport) {
+        finalPrompt += `, directly simulating the characteristics and feel of art created on ${selectedSupport.toLowerCase()}`;
       }
       
       let roleModifiers = [];
@@ -359,15 +372,48 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                   initial={{ opacity: 0, height: 0, y: -10 }}
                   animate={{ opacity: 1, height: 'auto', y: 0 }}
                   exit={{ opacity: 0, height: 0, y: -10 }}
-                  className="mt-3 flex flex-wrap items-center justify-center gap-3 overflow-visible"
+                  className="mt-3 flex flex-col items-center gap-4 overflow-visible"
                 >
-                  <CustomSelect label="Art Period" value={selectedStyle} onChange={setSelectedStyle} options={ART_STYLES} />
-                  <CustomSelect label="Movement" value={selectedMovement} onChange={setSelectedMovement} options={ART_MOVEMENTS} />
-                  <CustomSelect label="Media" value={selectedMedia} onChange={setSelectedMedia} options={ART_MEDIA} />
-                  <CustomSelect label="Support" value={selectedSupport} onChange={setSelectedSupport} options={ART_SUPPORTS} />
-                  <CustomSelect label="Designer" value={selectedDesigner} onChange={setSelectedDesigner} options={GRAPHIC_DESIGNERS} />
-                  <CustomSelect label="Illustrator" value={selectedIllustrator} onChange={setSelectedIllustrator} options={ILLUSTRATORS} />
-                  <CustomSelect label="Artist" value={selectedArtist} onChange={setSelectedArtist} options={MASTER_ARTISTS} />
+                  {/* Gentle info banner when selections are active */}
+                  <AnimatePresence>
+                    {(hasStyleSelected || hasMaterialSelected) && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="w-full"
+                      >
+                        <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-[#00A2FD]/5 border border-[#00A2FD]/10">
+                          <Info size={14} className="text-[#00A2FD]/40 flex-shrink-0" />
+                          <p className="text-[11px] text-base-400 leading-relaxed">
+                            For best results, one style and one material at a time. Tap <span className="text-white/60 font-medium">\u2715</span> on any selection to clear it.
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Style selectors — mutually exclusive group */}
+                  <div className="flex flex-col items-center gap-2">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-base-500/30 select-none">Style</span>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      <CustomSelect label="Art Period" value={selectedStyle} onChange={setSelectedStyle} options={ART_STYLES} disabled={hasStyleSelected && !selectedStyle} disabledHint={styleHint} />
+                      <CustomSelect label="Movement" value={selectedMovement} onChange={setSelectedMovement} options={ART_MOVEMENTS} disabled={hasStyleSelected && !selectedMovement} disabledHint={styleHint} />
+                      <CustomSelect label="Designer" value={selectedDesigner} onChange={setSelectedDesigner} options={GRAPHIC_DESIGNERS} disabled={hasStyleSelected && !selectedDesigner} disabledHint={styleHint} />
+                      <CustomSelect label="Illustrator" value={selectedIllustrator} onChange={setSelectedIllustrator} options={ILLUSTRATORS} disabled={hasStyleSelected && !selectedIllustrator} disabledHint={styleHint} />
+                      <CustomSelect label="Artist" value={selectedArtist} onChange={setSelectedArtist} options={MASTER_ARTISTS} disabled={hasStyleSelected && !selectedArtist} disabledHint={styleHint} />
+                    </div>
+                  </div>
+
+                  {/* Material selectors — mutually exclusive group */}
+                  <div className="flex flex-col items-center gap-2">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-base-500/30 select-none">Material</span>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      <CustomSelect label="Media" value={selectedMedia} onChange={setSelectedMedia} options={ART_MEDIA} disabled={hasMaterialSelected && !selectedMedia} disabledHint={materialHint} />
+                      <CustomSelect label="Support" value={selectedSupport} onChange={setSelectedSupport} options={ART_SUPPORTS} disabled={hasMaterialSelected && !selectedSupport} disabledHint={materialHint} />
+                    </div>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
