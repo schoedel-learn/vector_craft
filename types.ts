@@ -43,6 +43,7 @@ export interface UserProfile {
     seed: string;
   };
   isUnlimited?: boolean;
+  geminiApiKey?: string;
 }
 
 export interface ApiError {

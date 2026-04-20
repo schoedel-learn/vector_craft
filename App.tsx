@@ -92,13 +92,27 @@ const App: React.FC = () => {
   });
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
 
-  const handleSaveApiKey = (key: string) => {
+  const handleSaveApiKey = async (key: string) => {
     if (key) {
       localStorage.setItem(API_KEY_STORAGE_KEY, key);
       setGeminiApiKey(key);
+      if (user) {
+        try {
+          await setDoc(doc(db, 'users', user.uid), { geminiApiKey: key }, { merge: true });
+        } catch (e) {
+          console.error("Failed to save API key to profile", e);
+        }
+      }
     } else {
       localStorage.removeItem(API_KEY_STORAGE_KEY);
       setGeminiApiKey(null);
+      if (user) {
+        try {
+          await setDoc(doc(db, 'users', user.uid), { geminiApiKey: null }, { merge: true });
+        } catch (e) {
+          console.error("Failed to remove API key from profile", e);
+        }
+      }
     }
     setIsApiKeyModalOpen(false);
   };
@@ -126,7 +140,8 @@ const App: React.FC = () => {
               uid: currentUser.uid,
               email: currentUser.email || '',
               avatarConfig: data.avatarConfig,
-              isUnlimited: data.role === 'admin'
+              isUnlimited: data.role === 'admin',
+              geminiApiKey: data.geminiApiKey
             };
             
             // Add generated SVG to profile for UI
@@ -135,6 +150,15 @@ const App: React.FC = () => {
             }
             
             setUserProfile(profile);
+
+            // Sync API Key
+            const localKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+            if (data.geminiApiKey && data.geminiApiKey !== localKey) {
+              localStorage.setItem(API_KEY_STORAGE_KEY, data.geminiApiKey);
+              setGeminiApiKey(data.geminiApiKey);
+            } else if (!data.geminiApiKey && localKey) {
+              setDoc(doc(db, 'users', currentUser.uid), { geminiApiKey: localKey }, { merge: true }).catch(e => console.error(e));
+            }
           }
         });
 
