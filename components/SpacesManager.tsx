@@ -3,20 +3,26 @@ import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc, order
 import { db } from '../firebase';
 import { Space, SpaceKnowledge } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown, Search, Check, Layers } from 'lucide-react';
+import { ChevronDown, Search, Check, Layers, Sparkles, Undo2 } from 'lucide-react';
+import { generateTextWithGemini } from '../services/geminiService';
 
 interface SpacesManagerProps {
   userId: string;
   selectedSpaceId: string | null;
   onSelectSpace: (space: Space | null) => void;
+  apiKey: string;
 }
 
-export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSpaceId, onSelectSpace }) => {
+export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSpaceId, onSelectSpace, apiKey }) => {
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [editingSpaceId, setEditingSpaceId] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [spaceSearch, setSpaceSearch] = useState('');
+  const [formError, setFormError] = useState('');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const dropdownRef = React.useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -37,6 +43,14 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
   const [knowledge, setKnowledge] = useState<SpaceKnowledge[]>([]);
   const [newUrl, setNewUrl] = useState('');
 
+  // AI Generation State
+  const [originalTitle, setOriginalTitle] = useState('');
+  const [originalDescription, setOriginalDescription] = useState('');
+  const [originalPrompt, setOriginalPrompt] = useState('');
+  const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+
   useEffect(() => {
     if (!userId) return;
     const q = query(collection(db, 'users', userId, 'spaces'), orderBy('timestamp', 'desc'));
@@ -54,24 +68,105 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
     });
     return () => unsubscribe();
   }, [userId, selectedSpaceId, onSelectSpace]);
+  useEffect(() => {
+    if (!editingSpaceId) return;
 
-  const handleCreateSpace = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+    const timer = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        await updateDoc(doc(db, 'users', userId, 'spaces', editingSpaceId), {
+          title: title.trim() || 'Untitled Space',
+          description,
+          prompt,
+          knowledge,
+          timestamp: Date.now()
+        });
+        setSaveStatus('saved');
+        
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch (error) {
+        console.error("Autosave error:", error);
+        setSaveStatus('error');
+      }
+    }, 1000);
 
+    return () => clearTimeout(timer);
+  }, [title, description, prompt, knowledge, editingSpaceId, userId]);
+
+  const handleInitializeDraft = async () => {
     try {
-      await addDoc(collection(db, 'users', userId, 'spaces'), {
+      const docRef = await addDoc(collection(db, 'users', userId, 'spaces'), {
         uid: userId,
-        title,
-        description,
-        prompt,
-        knowledge,
+        title: 'Untitled Space',
+        description: '',
+        prompt: '',
+        knowledge: [],
         timestamp: Date.now()
       });
-      resetForm();
-      setIsCreating(false);
-    } catch (error) {
-      console.error("Error creating space:", error);
+      setEditingSpaceId(docRef.id);
+      setTitle('Untitled Space');
+      setDescription('');
+      setPrompt('');
+      setKnowledge([]);
+      setFormError('');
+      setIsCreating(true);
+      setIsModalOpen(true);
+    } catch(e) {
+      console.error("Failed to init draft:", e);
+    }
+  };
+
+  const getDisplayTitle = (rawTitle: string) => {
+    if (rawTitle.length > 20) {
+      return rawTitle.substring(0, 17).trim() + '...';
+    }
+    return rawTitle;
+  };
+
+  const handleCloseForm = async () => {
+    if (editingSpaceId) {
+      if ((title.trim() === 'Untitled Space' || title.trim() === '') && !description.trim() && !prompt.trim() && knowledge.length === 0) {
+        try {
+          await deleteDoc(doc(db, 'users', userId, 'spaces', editingSpaceId));
+          if (selectedSpaceId === editingSpaceId) onSelectSpace(null);
+        } catch(e) {
+          console.error("Failed to delete empty draft", e);
+        }
+      }
+    }
+    resetForm();
+    setIsCreating(false);
+    setIsModalOpen(false);
+  };
+
+  const handleGenerateAI = async (
+    field: 'title' | 'description' | 'prompt',
+    currentValue: string,
+    setOriginalValue: (val: string) => void,
+    originalValue: string,
+    setValue: (val: string) => void,
+    setLoading: (val: boolean) => void,
+    instruction: string
+  ) => {
+    if (!apiKey) {
+      setFormError("API key required for generation.");
+      return;
+    }
+    setLoading(true);
+    setFormError('');
+    try {
+      // Save original only if we haven't saved it yet or we're starting a fresh remix
+      if (!originalValue || originalValue === currentValue) {
+         setOriginalValue(currentValue);
+      }
+      
+      const promptToUse = currentValue.trim() || `Generate an innovative idea for an AI art ${field}.`;
+      const generated = await generateTextWithGemini(apiKey, promptToUse, instruction);
+      setValue(generated.trim().replace(/^["']|["']$/g, '')); // Strip surrounding quotes if any
+    } catch (err: any) {
+      setFormError(err.message || `Failed to generate ${field}.`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -91,6 +186,21 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
     setPrompt('');
     setKnowledge([]);
     setNewUrl('');
+    setEditingSpaceId(null);
+    setFormError('');
+    setOriginalTitle('');
+    setOriginalDescription('');
+    setOriginalPrompt('');
+  };
+
+  const handleEditSpaceClick = (space: Space) => {
+    setTitle(space.title);
+    setDescription(space.description || '');
+    setPrompt(space.prompt || '');
+    setKnowledge(space.knowledge || []);
+    setEditingSpaceId(space.id);
+    setSaveSuccess(false);
+    setIsCreating(true);
   };
 
   const addUrl = () => {
@@ -131,10 +241,7 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
         </div>
         <div className="flex items-center gap-2">
           <button 
-            onClick={() => {
-              setIsCreating(true);
-              setIsModalOpen(true);
-            }}
+            onClick={handleInitializeDraft}
             className="w-8 h-8 flex items-center justify-center rounded-lg bg-base-800/50 border border-white/5 text-base-400 hover:text-brand-400 hover:border-brand-400/30 transition-all"
             title="Create New Space"
           >
@@ -166,7 +273,7 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
             <div className="flex flex-col truncate">
               <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-base-500 mb-0.5">Current Space</span>
               <span className={`text-sm font-medium truncate ${selectedSpaceId ? 'text-white' : 'text-base-400 italic'}`}>
-                {selectedSpace ? selectedSpace.title : "None (Global Namespace)"}
+                {selectedSpace ? getDisplayTitle(selectedSpace.title) : "None (Global Namespace)"}
               </span>
             </div>
           </div>
@@ -228,7 +335,7 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                     }`}
                   >
                     <div className="flex flex-col truncate">
-                      <span className="truncate">{space.title}</span>
+                      <span className="truncate">{getDisplayTitle(space.title)}</span>
                       {space.description && <span className="text-[10px] text-base-500 truncate mt-0.5">{space.description}</span>}
                     </div>
                     {selectedSpaceId === space.id && <Check size={16} className="text-brand-400 flex-shrink-0" />}
@@ -254,7 +361,7 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
         >
           <div className="flex items-center gap-2 mb-1.5">
             <span className="material-symbols-outlined text-[16px] text-brand-400">info</span>
-            <span className="font-bold text-brand-400 uppercase tracking-wider text-[11px]">Active Space: {selectedSpace.title}</span>
+            <span className="font-bold text-brand-400 uppercase tracking-wider text-[11px]">Active Space: {getDisplayTitle(selectedSpace.title)}</span>
           </div>
           {selectedSpace.description && <p className="mb-3 opacity-70 leading-relaxed">{selectedSpace.description}</p>}
           <div className="flex flex-wrap gap-2">
@@ -284,11 +391,22 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
               <div className="p-8 border-b border-white/5 flex items-center justify-between bg-base-800/30">
                 <h2 className="text-xl font-bold flex items-center gap-3 text-white font-display">
                   <span className="material-symbols-outlined text-brand-400 text-[24px]">layers</span>
-                  {isCreating ? 'Create New Space' : 'Manage Spaces'}
+                  {editingSpaceId ? 'Edit Space' : isCreating ? 'Create New Space' : 'Manage Spaces'}
                 </h2>
-                <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors text-base-400 hover:text-white">
-                  <span className="material-symbols-outlined">close</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  {!isCreating && !editingSpaceId && (
+                    <button 
+                      onClick={handleInitializeDraft}
+                      className="w-10 h-10 flex items-center justify-center hover:bg-white/5 hover:bg-brand-400/10 rounded-full transition-colors text-brand-400 hover:text-brand-300"
+                      title="Create New Space"
+                    >
+                      <span className="material-symbols-outlined text-[24px]">add_circle</span>
+                    </button>
+                  )}
+                  <button onClick={handleCloseForm} className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors text-base-400 hover:text-white">
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-8 scrollbar-hide">
@@ -301,10 +419,17 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                           className="p-5 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between group hover:border-brand-400/30 transition-all"
                         >
                           <div>
-                            <h4 className="font-bold text-white mb-1">{space.title}</h4>
+                            <h4 className="font-bold text-white mb-1">{getDisplayTitle(space.title)}</h4>
                             <p className="text-xs text-base-500 line-clamp-1">{space.description || 'No description provided'}</p>
                           </div>
                           <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleEditSpaceClick(space)}
+                              className="w-10 h-10 flex items-center justify-center text-base-500 hover:text-brand-400 hover:bg-brand-400/10 rounded-xl transition-all"
+                              title="Edit Space"
+                            >
+                              <span className="material-symbols-outlined text-[20px]">edit</span>
+                            </button>
                             <button 
                               onClick={(e) => handleDeleteSpace(e, space.id)}
                               className="w-10 h-10 flex items-center justify-center text-base-500 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all"
@@ -324,12 +449,38 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                     </div>
                   </div>
                 ) : (
-                  <form onSubmit={handleCreateSpace} className="space-y-8">
+                  <form onSubmit={(e) => e.preventDefault()} className="space-y-8">
                     <div className="space-y-6">
                       <div>
-                        <label className="block text-[10px] font-bold text-base-500 uppercase tracking-[0.2em] mb-3">Space Title</label>
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="block text-[10px] font-bold text-base-500 uppercase tracking-[0.2em] mb-0">Space Title</label>
+                          <div className="flex items-center gap-3">
+                            {originalTitle && originalTitle !== title && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTitle(originalTitle);
+                                  setOriginalTitle('');
+                                }}
+                                className="flex items-center gap-1 text-[10px] font-medium tracking-wide text-base-400 hover:text-white transition-colors"
+                                title="Revert to original"
+                              >
+                                <Undo2 size={12} />
+                                Revert
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleGenerateAI('title', title, setOriginalTitle, originalTitle, setTitle, setIsGeneratingTitle, "You are a naming assistant for an AI SVG web app. Suggest a concise, highly creative 2-4 word title for a workspace based on this input. Return ONLY the title. No quotes.")}
+                              disabled={isGeneratingTitle}
+                              className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-brand-400 hover:text-brand-300 transition-colors disabled:opacity-50"
+                            >
+                              <Sparkles size={12} className={isGeneratingTitle ? "animate-pulse" : ""} />
+                              {isGeneratingTitle ? "Generating..." : originalTitle && originalTitle !== title ? "Remix" : "Generate"}
+                            </button>
+                          </div>
+                        </div>
                         <input 
-                          required
                           value={title}
                           onChange={(e) => setTitle(e.target.value)}
                           placeholder="e.g., Brand Identity"
@@ -337,7 +488,34 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-base-500 uppercase tracking-[0.2em] mb-3">Description</label>
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="block text-[10px] font-bold text-base-500 uppercase tracking-[0.2em] mb-0">Description</label>
+                          <div className="flex items-center gap-3">
+                            {originalDescription && originalDescription !== description && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDescription(originalDescription);
+                                  setOriginalDescription('');
+                                }}
+                                className="flex items-center gap-1 text-[10px] font-medium tracking-wide text-base-400 hover:text-white transition-colors"
+                                title="Revert to original"
+                              >
+                                <Undo2 size={12} />
+                                Revert
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleGenerateAI('description', description, setOriginalDescription, originalDescription, setDescription, setIsGeneratingDescription, "You are an assistant. Write a concise, 1-2 sentence description explaining the purpose of this AI art workspace based on the user's input. Return ONLY the description.")}
+                              disabled={isGeneratingDescription}
+                              className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-brand-400 hover:text-brand-300 transition-colors disabled:opacity-50"
+                            >
+                              <Sparkles size={12} className={isGeneratingDescription ? "animate-pulse" : ""} />
+                              {isGeneratingDescription ? "Generating..." : originalDescription && originalDescription !== description ? "Remix" : "Generate"}
+                            </button>
+                          </div>
+                        </div>
                         <textarea 
                           value={description}
                           onChange={(e) => setDescription(e.target.value)}
@@ -346,7 +524,34 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-base-500 uppercase tracking-[0.2em] mb-3">Space Prompt (System Guidance)</label>
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="block text-[10px] font-bold text-base-500 uppercase tracking-[0.2em] mb-0">Space Prompt (System Guidance)</label>
+                          <div className="flex items-center gap-3">
+                            {originalPrompt && originalPrompt !== prompt && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPrompt(originalPrompt);
+                                  setOriginalPrompt('');
+                                }}
+                                className="flex items-center gap-1 text-[10px] font-medium tracking-wide text-base-400 hover:text-white transition-colors"
+                                title="Revert to original"
+                              >
+                                <Undo2 size={12} />
+                                Revert
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleGenerateAI('prompt', prompt, setOriginalPrompt, originalPrompt, setPrompt, setIsGeneratingPrompt, "You are an expert AI prompt engineer for vector art. Expand the user's input into a highly detailed system instruction (3-5 sentences) that will guide an SVG generator. Focus on specific visual styles, color palettes, shapes, and technical SVG approaches. Avoid introductory text, just provide the prompt.")}
+                              disabled={isGeneratingPrompt}
+                              className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase text-brand-400 hover:text-brand-300 transition-colors disabled:opacity-50"
+                            >
+                              <Sparkles size={12} className={isGeneratingPrompt ? "animate-pulse" : ""} />
+                              {isGeneratingPrompt ? "Generating..." : originalPrompt && originalPrompt !== prompt ? "Remix" : "Generate"}
+                            </button>
+                          </div>
+                        </div>
                         <textarea 
                           value={prompt}
                           onChange={(e) => setPrompt(e.target.value)}
@@ -362,6 +567,12 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                             <input 
                               value={newUrl}
                               onChange={(e) => setNewUrl(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  addUrl();
+                                }
+                              }}
                               placeholder="Add a reference URL..."
                               className="flex-1 bg-base-950 border border-white/10 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-brand-400/50 transition-all text-white placeholder:text-base-700"
                             />
@@ -396,7 +607,7 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                                 <span className="material-symbols-outlined text-[18px]">{k.type === 'url' ? 'link' : 'description'}</span>
                                 <span className="truncate max-w-[350px]">{k.name || k.value}</span>
                               </div>
-                              <button onClick={() => removeKnowledge(i)} className="w-8 h-8 flex items-center justify-center text-base-600 hover:text-red-400 transition-colors">
+                              <button type="button" onClick={() => removeKnowledge(i)} className="w-8 h-8 flex items-center justify-center text-base-600 hover:text-red-400 transition-colors">
                                 <span className="material-symbols-outlined text-[18px]">close</span>
                               </button>
                             </div>
@@ -405,19 +616,26 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                       </div>
                     </div>
 
-                    <div className="flex gap-4 pt-4">
+                    {formError && (
+                      <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-sm font-medium flex items-center gap-3 animate-in fade-in zoom-in duration-200">
+                        <span className="material-symbols-outlined text-[20px]">error</span>
+                        {formError}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-4">
+                      <div className="flex items-center gap-2 text-xs font-medium h-5">
+                        {saveStatus === 'saving' && <span className="text-brand-400 animate-pulse transition-opacity">Saving...</span>}
+                        {saveStatus === 'saved' && <span className="text-green-400 flex items-center gap-1 transition-opacity"><Check size={14} /> Saved</span>}
+                        {saveStatus === 'error' && <span className="text-red-400 transition-opacity">Error saving</span>}
+                      </div>
+
                       <button 
                         type="button"
-                        onClick={() => setIsCreating(false)}
-                        className="flex-1 py-4 rounded-2xl bg-base-800 hover:bg-base-700 text-white font-bold transition-all uppercase tracking-widest text-xs"
+                        onClick={handleCloseForm}
+                        className="px-10 py-4 rounded-xl bg-brand-400 text-base-950 font-bold transition-all uppercase tracking-widest text-xs shadow-lg shadow-brand-400/20 hover:bg-brand-300"
                       >
-                        Back
-                      </button>
-                      <button 
-                        type="submit"
-                        className="flex-1 py-4 rounded-2xl bg-brand-400 hover:bg-brand-300 text-base-950 font-bold transition-all uppercase tracking-widest text-xs shadow-lg shadow-brand-400/20"
-                      >
-                        Create Space
+                        Done
                       </button>
                     </div>
                   </form>
