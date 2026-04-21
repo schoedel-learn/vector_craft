@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { createAvatar } from '@dicebear/core';
 import * as collection from '@dicebear/collection';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
+import { UserCircle, X, Shuffle } from 'lucide-react';
 
 interface AvatarSelectorProps {
   isOpen: boolean;
@@ -64,11 +65,11 @@ export const AvatarSelector: React.FC<AvatarSelectorProps> = ({ isOpen, onClose,
       >
         <div className="p-6 border-b border-white/5 flex items-center justify-between bg-base-800/30">
           <h2 className="text-xl font-bold flex items-center gap-3 text-white font-display">
-            <span className="material-symbols-outlined text-brand-400 text-[24px]">face</span>
+            <UserCircle size={24} className="text-brand-400" />
             Customize Avatar
           </h2>
           <button onClick={onClose} className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors text-base-400 hover:text-white">
-            <span className="material-symbols-outlined">close</span>
+            <X size={20} />
           </button>
         </div>
 
@@ -82,7 +83,7 @@ export const AvatarSelector: React.FC<AvatarSelectorProps> = ({ isOpen, onClose,
               onClick={handleRandomize}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-base-800 hover:bg-base-700 text-white text-xs font-bold uppercase tracking-widest transition-all"
             >
-              <span className="material-symbols-outlined text-[18px]">casino</span>
+              <Shuffle size={18} />
               Randomize Seed
             </button>
           </div>

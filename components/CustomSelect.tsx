@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown, Check, Search, X, Info } from 'lucide-react';
+import { ChevronDown, Check, Search, X, Info, Camera } from 'lucide-react';
+import { StyleCategory } from '../types';
+import { toSlug } from '../services/styleRefService';
 
 /**
  * Options can be either plain strings (no tooltip) or objects with a name and tooltip.
@@ -25,6 +27,9 @@ interface CustomSelectProps {
   disabled?: boolean;
   /** Hint shown on hover when the selector is disabled */
   disabledHint?: string;
+  /** Category for style lookups (shows camera icon if ref images exist) */
+  styleCategory?: StyleCategory;
+  styleManifest?: Set<string>;
 }
 
 export const CustomSelect: React.FC<CustomSelectProps> = ({
@@ -34,7 +39,9 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   options,
   placeholder = "Default",
   disabled = false,
-  disabledHint
+  disabledHint,
+  styleCategory,
+  styleManifest
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -178,6 +185,10 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
               ) : (
                 filteredOptions.map((opt) => {
                   const name = getOptionName(opt);
+                  const hasVisualRef = styleCategory && styleManifest
+                    ? styleManifest.has(`${styleCategory}_${toSlug(name)}`)
+                    : false;
+
                   return (
                     <button
                       key={name}
@@ -193,8 +204,13 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                         value === name ? 'bg-[#00A2FD]/10 text-[#00A2FD] font-medium' : 'text-base-200 hover:bg-white/5 hover:text-white'
                       }`}
                     >
-                      <span className="truncate">{name}</span>
-                      {value === name && <Check size={14} className="text-[#00A2FD] flex-shrink-0" />}
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="truncate">{name}</span>
+                        {hasVisualRef && (
+                          <Camera size={13} className="text-[#00A2FD]/60 flex-shrink-0" title="Visual references available" />
+                        )}
+                      </div>
+                      {value === name && <Check size={14} className="text-[#00A2FD] flex-shrink-0 ml-2" />}
                     </button>
                   );
                 })

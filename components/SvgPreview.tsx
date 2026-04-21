@@ -5,6 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { GeneratedSvg, Space } from '../types';
+import { Bookmark, CheckCircle2, Code, Download, SlidersHorizontal, X, Copy, Check } from 'lucide-react';
 
 interface SvgPreviewProps {
   data: GeneratedSvg | null;
@@ -77,28 +78,28 @@ export const SvgPreview: React.FC<SvgPreviewProps> = ({ data, selectedSpace, onS
                 onClick={handleSaveToSpace}
                 className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-brand-400 bg-brand-400/10 border border-brand-400/20 rounded-lg hover:bg-brand-400/20 transition-colors shadow-sm"
               >
-                <span className="material-symbols-outlined text-[18px]">bookmark</span>
+                <Bookmark size={18} />
                 <span className="hidden sm:inline">Save to {selectedSpace.title}</span>
               </button>
             )}
             {isSavedToSpace && (
               <div className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-brand-400 bg-brand-400/5 border border-brand-400/10 rounded-lg">
-                <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                <CheckCircle2 size={18} />
                 <span className="hidden sm:inline">Saved to Space</span>
               </div>
             )}
-            <button
+              <button
               onClick={() => setShowCode(!showCode)}
               className={`p-2 rounded-lg transition-colors group relative flex items-center justify-center ${showCode ? 'text-brand-400 bg-brand-400/10' : 'text-base-400 hover:text-white hover:bg-white/10'}`}
               title={showCode ? "Hide SVG Code" : "Show SVG Code"}
             >
-              <span className="material-symbols-outlined text-[20px]">code</span>
+              <Code size={20} />
             </button>
             <button
               onClick={handleDownload}
               className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-base-900 bg-white rounded-lg hover:bg-base-200 transition-colors shadow-sm"
             >
-              <span className="material-symbols-outlined text-[18px]">download</span>
+              <Download size={18} />
               <span className="hidden sm:inline">Download</span>
             </button>
             {!isRemixing ? (
@@ -106,7 +107,7 @@ export const SvgPreview: React.FC<SvgPreviewProps> = ({ data, selectedSpace, onS
                 onClick={() => setIsRemixing(true)}
                 className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#00A2FD] bg-[#00A2FD]/10 border border-[#00A2FD]/20 rounded-lg hover:bg-[#00A2FD]/20 transition-colors shadow-sm"
               >
-                <span className="material-symbols-outlined text-[18px]">tune</span>
+                <SlidersHorizontal size={18} />
                 <span className="hidden sm:inline">Remix</span>
               </button>
             ) : (
@@ -129,7 +130,7 @@ export const SvgPreview: React.FC<SvgPreviewProps> = ({ data, selectedSpace, onS
                   className="p-1 text-base-400 hover:text-white transition-colors"
                   title="Cancel"
                 >
-                  <span className="material-symbols-outlined text-[16px]">close</span>
+                  <X size={16} />
                 </button>
               </div>
             )}
@@ -146,9 +147,9 @@ export const SvgPreview: React.FC<SvgPreviewProps> = ({ data, selectedSpace, onS
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-base-300 bg-base-800 hover:bg-base-700 hover:text-white rounded-lg transition-colors shadow-sm border border-white/5"
                 >
                   {copied ? (
-                    <><span className="material-symbols-outlined text-[14px] text-green-400">check</span> Copied!</>
+                    <><Check size={14} className="text-green-400" /> Copied!</>
                   ) : (
-                    <><span className="material-symbols-outlined text-[14px]">content_copy</span> Copy Code</>
+                    <><Copy size={14} /> Copy Code</>
                   )}
                 </button>
               </div>
@@ -165,9 +166,9 @@ export const SvgPreview: React.FC<SvgPreviewProps> = ({ data, selectedSpace, onS
                   title="Copy SVG Code"
                 >
                   {copied ? (
-                    <><span className="material-symbols-outlined text-[14px] text-green-400">check</span> Copied!</>
+                    <><Check size={14} className="text-green-400" /> Copied!</>
                   ) : (
-                    <><span className="material-symbols-outlined text-[14px]">content_copy</span> Copy SVG</>
+                    <><Copy size={14} /> Copy SVG</>
                   )}
                 </button>
               </div>
@@ -194,9 +195,9 @@ export const SvgPreview: React.FC<SvgPreviewProps> = ({ data, selectedSpace, onS
                 title="Copy Prompt"
               >
                 {copiedPrompt ? (
-                  <><span className="material-symbols-outlined text-[14px] text-green-400">check</span> Copied</>
+                  <><Check size={14} className="text-green-400" /> Copied</>
                 ) : (
-                  <><span className="material-symbols-outlined text-[14px]">content_copy</span> Copy</>
+                  <><Copy size={14} /> Copy</>
                 )}
               </button>
             </div>

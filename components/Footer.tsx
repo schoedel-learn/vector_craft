@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Check, Copy } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const [copied, setCopied] = useState(false);
@@ -51,9 +52,9 @@ export const Footer: React.FC = () => {
             <span>{emailParts[0]}&#64;{emailParts[1]}</span>
             <span className="absolute -right-5 flex items-center">
               {copied ? (
-                <span className="material-symbols-outlined text-[14px] text-green-400">check</span>
+                <Check size={14} className="text-green-400" />
               ) : (
-                <span className="material-symbols-outlined text-[14px] opacity-0 group-hover:opacity-100 transition-opacity">content_copy</span>
+                <Copy size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
               )}
             </span>
           </button>

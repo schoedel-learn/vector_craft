@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { AlertCircle, X } from 'lucide-react';
 import { InputSection } from './components/InputSection';
 import { SvgPreview } from './components/SvgPreview';
 import { Header } from './components/Header';
@@ -15,7 +16,8 @@ import { AvatarSelector } from './components/AvatarSelector';
 import { ApiKeySetup } from './components/ApiKeySetup';
 import { generateSvgFromPrompt, ReferenceFile } from './services/geminiService';
 import { getAvatarSvg } from './services/avatarService';
-import { GeneratedSvg, GenerationStatus, ApiError, Space, UserProfile } from './types';
+import { getStyleRefs, fetchStyleImagesForGemini } from './services/styleRefService';
+import { GeneratedSvg, GenerationStatus, ApiError, Space, UserProfile, StyleSelection, AspectRatio } from './types';
 import { auth, db, googleProvider } from './firebase';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, where, orderBy, onSnapshot, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -249,7 +251,7 @@ const App: React.FC = () => {
   const recentGenerationsCount = history.filter(svg => svg.timestamp > limitTime).length;
   const generationsLeft = isUnlimited ? Infinity : Math.max(0, RECENT_LIMIT - recentGenerationsCount);
 
-  const handleGenerate = async (prompt: string) => {
+  const handleGenerate = async (prompt: string, styleSelection?: StyleSelection, aspectRatio?: AspectRatio) => {
     if (!user) {
       setError({
         message: "Sign In Required",
@@ -317,13 +319,28 @@ const App: React.FC = () => {
         }
       }
 
+      // Fetch visual style reference images, if a style is active and has them
+      let styleReferences: ReferenceFile[] = [];
+      if (styleSelection) {
+        try {
+          const styleRefDoc = await getStyleRefs(styleSelection);
+          if (styleRefDoc && styleRefDoc.imageUrls.length > 0) {
+            styleReferences = await fetchStyleImagesForGemini(styleRefDoc);
+          }
+        } catch (e) {
+          console.warn('Style refs fetch failed (non-fatal), proceeding without visual context', e);
+        }
+      }
+
       const svgContent = await generateSvgFromPrompt(
         geminiApiKey,
         prompt, 
         reference, 
         referenceUrl,
         selectedSpace?.prompt,
-        selectedSpace?.knowledge
+        selectedSpace?.knowledge,
+        styleReferences,
+        aspectRatio
       );
       
       // Clear selected file after successful generation
@@ -353,6 +370,7 @@ const App: React.FC = () => {
       
       setCurrentSvg(newSvg);
       setStatus(GenerationStatus.SUCCESS);
+      setRemixRequest(null); // Exit remix mode after a successful generation
 
       if (user) {
         const path = `users/${user.uid}/svgs/${id}`;
@@ -459,12 +477,13 @@ const App: React.FC = () => {
               onReferenceUrlChange={setReferenceUrl}
               onLogin={handleLogin}
               remixRequest={remixRequest}
+              onCancelRemix={() => setRemixRequest(null)}
             />
 
             {loginError && (
               <div className="max-w-2xl mx-auto mt-4 px-4">
                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 text-red-200">
-                  <span className="material-symbols-outlined text-red-400 text-[20px] flex-shrink-0 mt-0.5">error</span>
+                  <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <h4 className="font-semibold text-red-400 font-display">Sign-in Failed</h4>
                     <p className="text-sm text-red-300/70 mt-1">{loginError}</p>
@@ -474,7 +493,7 @@ const App: React.FC = () => {
                     className="text-red-400 hover:text-red-300 transition-colors flex-shrink-0"
                     title="Dismiss"
                   >
-                    <span className="material-symbols-outlined text-[18px]">close</span>
+                    <X size={18} />
                   </button>
                 </div>
               </div>
@@ -483,7 +502,7 @@ const App: React.FC = () => {
             {status === GenerationStatus.ERROR && error && (
               <div className="max-w-2xl mx-auto mt-8 px-4">
                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 text-red-200">
-                  <span className="material-symbols-outlined text-red-400 text-[20px] flex-shrink-0 mt-0.5">error</span>
+                  <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-semibold text-red-400 font-display">{error.message}</h4>
                     <p className="text-sm text-red-300/70 mt-1">{error.details}</p>

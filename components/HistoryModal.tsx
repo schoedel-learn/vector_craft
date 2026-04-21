@@ -1,5 +1,6 @@
 import React from 'react';
 import { GeneratedSvg } from '../types';
+import { Clock, X, Download, RotateCcw } from 'lucide-react';
 
 interface HistoryModalProps {
   isOpen: boolean;
@@ -30,14 +31,14 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, his
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-base-800/50">
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-brand-400 text-[20px]">schedule</span>
+            <Clock size={20} className="text-brand-400" />
             <h2 className="text-xl font-semibold text-white font-display">Your Generation History</h2>
           </div>
           <button 
             onClick={onClose}
             className="p-2 text-base-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors flex items-center justify-center"
           >
-            <span className="material-symbols-outlined text-[20px]">close</span>
+            <X size={20} />
           </button>
         </div>
 
@@ -45,7 +46,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, his
         <div className="flex-1 overflow-y-auto p-6 bg-base-950/50">
           {history.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-base-500">
-              <span className="material-symbols-outlined text-[48px] mb-4 opacity-20">schedule</span>
+              <Clock size={48} className="mb-4 opacity-20" />
               <p>No SVGs generated yet.</p>
             </div>
           ) : (
@@ -59,7 +60,6 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, his
                       className="w-full h-full flex items-center justify-center"
                       dangerouslySetInnerHTML={{ __html: item.content }} 
                     />
-                    
                   </div>
 
                   {/* Details */}
@@ -79,7 +79,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, his
                         onClick={() => handleDownload(item)}
                         className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-base-700 text-base-200 rounded-lg hover:bg-base-600 hover:text-white transition-colors text-sm font-medium"
                       >
-                        <span className="material-symbols-outlined text-[16px]">download</span>
+                        <Download size={16} />
                         Download
                       </button>
                       <button
@@ -89,7 +89,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ isOpen, onClose, his
                         }}
                         className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-brand-500/20 text-brand-300 rounded-lg hover:bg-brand-500/30 hover:text-brand-200 transition-colors text-sm font-medium"
                       >
-                        <span className="material-symbols-outlined text-[16px]">refresh</span>
+                        <RotateCcw size={16} />
                         Regenerate
                       </button>
                     </div>

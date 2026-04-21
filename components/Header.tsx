@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { LogoIcon } from './LogoIcon';
+import { ShieldCheck, KeyRound, History, Pencil, LogOut, LogIn } from 'lucide-react';
 
 interface HeaderProps {
   user: any;
@@ -48,7 +49,6 @@ export const Header: React.FC<HeaderProps> = ({
               alt="Schoedel Design AI Logo" 
               className="w-10 h-10 object-contain"
               onError={(e) => {
-                // Fallback to the SVG icon if the image fails to load
                 e.currentTarget.style.display = 'none';
                 const svgFallback = e.currentTarget.nextElementSibling;
                 if (svgFallback) {
@@ -83,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className="flex items-center gap-2 text-sm font-medium text-[#00A2FD] hover:opacity-80 transition-colors"
                   title="Admin Panel"
                 >
-                  <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
+                  <ShieldCheck size={18} />
                   <span className="hidden sm:inline">Admin</span>
                 </button>
               )}
@@ -97,7 +97,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }`}
                   title={hasApiKey ? "Manage API Key" : "Set up API Key"}
                 >
-                  <span className="material-symbols-outlined text-[18px]">key</span>
+                  <KeyRound size={18} />
                   <span className="hidden sm:inline">{hasApiKey ? 'API Key' : 'Add Key'}</span>
                 </button>
               )}
@@ -106,7 +106,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="flex items-center gap-2 text-sm font-medium text-white hover:text-gray-300 transition-colors"
                 title="View History"
               >
-                <span className="material-symbols-outlined text-[18px]">history</span>
+                <History size={18} />
                 <span className="hidden sm:inline">History</span>
               </button>
               <div className="h-4 w-px bg-base-300 hidden sm:block"></div>
@@ -129,7 +129,7 @@ export const Header: React.FC<HeaderProps> = ({
                     />
                   )}
                   <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#00A2FD] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
-                    <span className="material-symbols-outlined text-[10px] text-base-950 font-bold">edit</span>
+                    <Pencil size={8} className="text-base-950" />
                   </div>
                 </button>
                 <button
@@ -137,7 +137,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className="text-sm text-white hover:text-gray-300 transition-colors flex items-center justify-center"
                   title="Sign Out"
                 >
-                  <span className="material-symbols-outlined text-[18px]">logout</span>
+                  <LogOut size={18} />
                 </button>
               </div>
             </>
@@ -146,7 +146,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={onLogin}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-base-900 rounded-lg hover:bg-base-800 transition-colors shadow-sm"
             >
-              <span className="material-symbols-outlined text-[18px]">login</span>
+              <LogIn size={18} />
               Sign In
             </button>
           )}

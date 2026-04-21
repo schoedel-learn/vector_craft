@@ -13,6 +13,8 @@ import { GRAPHIC_DESIGNERS } from './artDesigners';
 import { ILLUSTRATORS } from './artIllustrators';
 import { MASTER_ARTISTS } from './artArtists';
 import { CustomSelect, SelectOption } from './CustomSelect';
+import { StyleSelection, AspectRatio, ASPECT_RATIO_CONFIG, StyleCategory } from '../types';
+import { getStyleRefManifest, toSlug } from '../services/styleRefService';
 
 /** Look up the aiContext for a selected name from a given options array. */
 const getAiContext = (name: string, options: SelectOption[]): string | undefined => {
@@ -20,11 +22,11 @@ const getAiContext = (name: string, options: SelectOption[]): string | undefined
   const found = options.find(o => (typeof o === 'string' ? o : o.name) === name);
   return found && typeof found !== 'string' ? found.aiContext : undefined;
 };
-import { SlidersHorizontal, Info } from 'lucide-react';
+import { SlidersHorizontal, Info, Paperclip, Sparkles, ArrowRight, LogIn, Loader2, Link2, FileUp, X, Wand2, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface InputSectionProps {
-  onGenerate: (prompt: string) => void;
+  onGenerate: (prompt: string, styleSelection?: StyleSelection, aspectRatio?: AspectRatio) => void;
   status: GenerationStatus;
   user: User | null;
   generationsLeft: number;
@@ -38,6 +40,7 @@ interface InputSectionProps {
   onReferenceUrlChange: (url: string) => void;
   onLogin: () => void;
   remixRequest?: {prompt: string, timestamp: number} | null;
+  onCancelRemix?: () => void;
 }
 
 const SUGGESTIONS_POOL = [
@@ -129,7 +132,7 @@ const PHRASES_POOL = [
   'Origami crane on a wooden table'
 ];
 
-export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, user, generationsLeft, isUnlimited, isClient, hoursLimit, totalLimit, selectedFile, onFileSelect, referenceUrl, onReferenceUrlChange, onLogin, remixRequest }) => {
+export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, user, generationsLeft, isUnlimited, isClient, hoursLimit, totalLimit, selectedFile, onFileSelect, referenceUrl, onReferenceUrlChange, onLogin, remixRequest, onCancelRemix }) => {
   const [input, setInput] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('');
   const [selectedMovement, setSelectedMovement] = useState('');
@@ -143,7 +146,22 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
   const [placeholderSuggestion, setPlaceholderSuggestion] = useState('');
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showStyleTooltip, setShowStyleTooltip] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>('square');
+  const [styleManifest, setStyleManifest] = useState<Set<string>>(new Set());
+  const [remixFlash, setRemixFlash] = useState<string | null>(null);
   const attachmentRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const isRemixMode = !!remixRequest;
+
+  /** Wraps a style setter so it fires a brief confirmation flash in remix mode */
+  const withRemixFlash = (setter: (v: string) => void, label: string) => (v: string) => {
+    setter(v);
+    if (v && isRemixMode) {
+      setRemixFlash(`${label}: ${v}`);
+      setTimeout(() => setRemixFlash(null), 2200);
+    }
+  };
 
   // Mutual exclusivity — only one style and one material at a time
   const hasStyleSelected = !!(selectedStyle || selectedMovement || selectedDesigner || selectedIllustrator || selectedArtist);
@@ -161,6 +179,12 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
+
+    // Fetch the set of styles that have visual reference images
+    getStyleRefManifest().then((manifest) => {
+      setStyleManifest(manifest);
+    });
+
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
@@ -177,6 +201,8 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
   useEffect(() => {
     if (remixRequest) {
       setInput(remixRequest.prompt);
+      setShowAdvanced(true); // Always open styles when remixing
+      setTimeout(() => textareaRef.current?.focus(), 150);
     }
   }, [remixRequest]);
 
@@ -240,12 +266,48 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
         finalPrompt += `, heavily incorporating the specific visual methods, stylistic approaches, and underlying design philosophies that typify the work of ${rolesString}`;
       }
       
-      onGenerate(finalPrompt);
+      let styleSelection: StyleSelection | undefined;
+      if (selectedStyle) styleSelection = { category: 'period', name: selectedStyle, slug: toSlug(selectedStyle) };
+      else if (selectedMovement) styleSelection = { category: 'movement', name: selectedMovement, slug: toSlug(selectedMovement) };
+      else if (selectedDesigner) styleSelection = { category: 'designer', name: selectedDesigner, slug: toSlug(selectedDesigner) };
+      else if (selectedIllustrator) styleSelection = { category: 'illustrator', name: selectedIllustrator, slug: toSlug(selectedIllustrator) };
+      else if (selectedArtist) styleSelection = { category: 'artist', name: selectedArtist, slug: toSlug(selectedArtist) };
+      
+      onGenerate(finalPrompt, styleSelection, aspectRatio);
     }
-  }, [input, status, onGenerate, selectedStyle, selectedMovement, selectedMedia, selectedSupport, selectedDesigner, selectedIllustrator, selectedArtist]);
+  }, [input, status, onGenerate, selectedStyle, selectedMovement, selectedMedia, selectedSupport, selectedDesigner, selectedIllustrator, selectedArtist, aspectRatio]);
 
   return (
     <div className="w-full max-w-2xl mx-auto mt-12 px-4">
+      {/* ── Remix Mode Banner ── */}
+      <AnimatePresence>
+        {isRemixMode && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={{ duration: 0.2 }}
+            className="mb-4 flex items-start gap-3 bg-[#00A2FD]/8 border border-[#00A2FD]/25 rounded-2xl px-4 py-3.5"
+          >
+            <Wand2 size={16} className="text-[#00A2FD] flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#00A2FD] mb-0.5">Remix Mode</p>
+              <p className="text-xs text-base-300 truncate">&#8220;{remixRequest?.prompt}&#8221;</p>
+              <p className="text-[10px] text-base-500 mt-1">Adjust styles below, then tap <strong className="text-[#00A2FD]">Remix</strong> to generate a new version.</p>
+            </div>
+            {onCancelRemix && (
+              <button
+                type="button"
+                onClick={onCancelRemix}
+                className="text-base-500 hover:text-white transition-colors flex-shrink-0 mt-0.5"
+                title="Exit remix mode"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Hero Section — only shown to logged-out visitors */}
       {!user && (
         <div className="text-center mb-12">
@@ -276,14 +338,14 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                 }`}
                 title="Add reference"
               >
-                <span className="material-symbols-outlined text-[24px]">attach_file</span>
+                <Paperclip size={24} />
               </button>
               
               {showAttachmentMenu && (
                 <div className="absolute bottom-full left-0 mb-2 bg-[#1A2634] border border-white/10 rounded-xl p-3 shadow-2xl z-20 flex flex-col gap-3 min-w-[280px]">
                   {/* URL row */}
                   <div className="flex items-center bg-black/20 rounded-lg px-3 py-2 border border-white/5 focus-within:border-[#00A2FD]/50 transition-colors">
-                    <span className="material-symbols-outlined text-[18px] text-base-400 mr-2">link</span>
+                    <Link2 size={18} className="text-base-400 mr-2" />
                     <input
                       type="url"
                       value={referenceUrl}
@@ -298,7 +360,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                         onClick={() => onReferenceUrlChange('')}
                         className="ml-2 text-base-500 hover:text-white transition-colors flex-shrink-0"
                       >
-                        <span className="material-symbols-outlined text-[16px]">close</span>
+                        <X size={16} />
                       </button>
                     )}
                   </div>
@@ -306,7 +368,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                   {isClient && (
                     <div className="flex items-center justify-between bg-black/20 rounded-lg px-3 py-2 border border-white/5">
                       <div className="flex items-center gap-2 overflow-hidden">
-                        <span className="material-symbols-outlined text-[18px] text-base-400">upload_file</span>
+                        <FileUp size={18} className="text-base-400" />
                         {selectedFile ? (
                           <span className="text-sm text-[#00A2FD] truncate">{selectedFile.name}</span>
                         ) : (
@@ -337,7 +399,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                             onClick={() => onFileSelect(null)} 
                             className="text-base-400 hover:text-white p-1 rounded hover:bg-white/10 transition-colors"
                           >
-                            <span className="material-symbols-outlined text-[16px]">close</span>
+                            <X size={16} />
                           </button>
                         )}
                       </div>
@@ -359,7 +421,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
 
           <div className="flex-1 relative flex items-center bg-[#101A28] rounded-xl border border-white/10 shadow-lg overflow-hidden p-2">
             <div className="pl-4 text-[#00A2FD] flex items-center justify-center flex-shrink-0">
-              <span className="material-symbols-outlined text-[24px]">magic_button</span>
+              <Sparkles size={24} className="text-[#00A2FD]" />
             </div>
             <textarea
               value={input}
@@ -371,6 +433,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
               }}
               onKeyDown={handleKeyDown}
               placeholder={!user ? "Sign in to start creating..." : isLimitReached ? "Limit reached..." : `e.g. ${placeholderSuggestion}...`}
+              ref={textareaRef}
               className="flex-1 bg-transparent border-none outline-none text-white placeholder-base-500 placeholder:italic pl-4 pr-[46px] py-4 text-[10px] sm:text-[15px] disabled:opacity-50 min-w-0 resize-none max-h-[200px] leading-tight overflow-y-auto"
               disabled={isLoading || !user || isLimitReached}
               rows={1}
@@ -381,7 +444,23 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                 onClick={onLogin}
                 className="flex items-center justify-center w-12 h-12 rounded-lg font-semibold transition-all duration-200 bg-[#00A2FD] text-white hover:opacity-90 active:scale-95 shadow-lg shadow-[#00A2FD]/20 flex-shrink-0"
               >
-                <span className="material-symbols-outlined text-[20px]">login</span>
+                <LogIn size={20} />
+              </button>
+            ) : isRemixMode ? (
+              /* Remix submit — labeled so it's obvious what the button does */
+              <button
+                type="button"
+                onClick={handleSubmit as any}
+                disabled={!input.trim() || isLoading || isLimitReached}
+                className={`
+                  flex items-center justify-center gap-2 px-5 h-12 rounded-lg font-bold text-sm transition-all duration-200 flex-shrink-0 whitespace-nowrap
+                  ${!input.trim() || isLoading || isLimitReached
+                    ? 'bg-base-700 text-base-500 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-[#00A2FD] to-[#4db8ff] text-white hover:opacity-90 active:scale-95 shadow-lg shadow-[#00A2FD]/20'}
+                `}
+              >
+                {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Wand2 size={18} />}
+                <span>{isLoading ? 'Generating…' : 'Remix'}</span>
               </button>
             ) : (
               <button
@@ -396,9 +475,9 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                 `}
               >
                 {isLoading ? (
-                  <span className="material-symbols-outlined text-[20px] animate-spin">progress_activity</span>
+                  <Loader2 size={20} className="animate-spin" />
                 ) : (
-                  <span className="material-symbols-outlined text-[24px]">arrow_forward</span>
+                  <ArrowRight size={24} />
                 )}
               </button>
             )}
@@ -460,11 +539,11 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                   <div className="flex flex-col items-center gap-2">
                     <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-base-500/30 select-none">Style</span>
                     <div className="flex flex-wrap items-center justify-center gap-2">
-                      <CustomSelect label="Art Period" value={selectedStyle} onChange={setSelectedStyle} options={ART_STYLES} disabled={hasStyleSelected && !selectedStyle} disabledHint={styleHint} />
-                      <CustomSelect label="Movement" value={selectedMovement} onChange={setSelectedMovement} options={ART_MOVEMENTS} disabled={hasStyleSelected && !selectedMovement} disabledHint={styleHint} />
-                      <CustomSelect label="Designer" value={selectedDesigner} onChange={setSelectedDesigner} options={GRAPHIC_DESIGNERS} disabled={hasStyleSelected && !selectedDesigner} disabledHint={styleHint} />
-                      <CustomSelect label="Illustrator" value={selectedIllustrator} onChange={setSelectedIllustrator} options={ILLUSTRATORS} disabled={hasStyleSelected && !selectedIllustrator} disabledHint={styleHint} />
-                      <CustomSelect label="Artist" value={selectedArtist} onChange={setSelectedArtist} options={MASTER_ARTISTS} disabled={hasStyleSelected && !selectedArtist} disabledHint={styleHint} />
+                      <CustomSelect label="Art Period" value={selectedStyle} onChange={withRemixFlash(setSelectedStyle, 'Art Period')} options={ART_STYLES} disabled={hasStyleSelected && !selectedStyle} disabledHint={styleHint} styleCategory="period" styleManifest={styleManifest} />
+                      <CustomSelect label="Movement" value={selectedMovement} onChange={withRemixFlash(setSelectedMovement, 'Movement')} options={ART_MOVEMENTS} disabled={hasStyleSelected && !selectedMovement} disabledHint={styleHint} styleCategory="movement" styleManifest={styleManifest} />
+                      <CustomSelect label="Designer" value={selectedDesigner} onChange={withRemixFlash(setSelectedDesigner, 'Designer')} options={GRAPHIC_DESIGNERS} disabled={hasStyleSelected && !selectedDesigner} disabledHint={styleHint} styleCategory="designer" styleManifest={styleManifest} />
+                      <CustomSelect label="Illustrator" value={selectedIllustrator} onChange={withRemixFlash(setSelectedIllustrator, 'Illustrator')} options={ILLUSTRATORS} disabled={hasStyleSelected && !selectedIllustrator} disabledHint={styleHint} styleCategory="illustrator" styleManifest={styleManifest} />
+                      <CustomSelect label="Artist" value={selectedArtist} onChange={withRemixFlash(setSelectedArtist, 'Artist')} options={MASTER_ARTISTS} disabled={hasStyleSelected && !selectedArtist} disabledHint={styleHint} styleCategory="artist" styleManifest={styleManifest} />
                     </div>
                   </div>
 
@@ -472,10 +551,48 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                   <div className="flex flex-col items-center gap-2">
                     <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-base-500/30 select-none">Material</span>
                     <div className="flex flex-wrap items-center justify-center gap-2">
-                      <CustomSelect label="Media" value={selectedMedia} onChange={setSelectedMedia} options={ART_MEDIA} disabled={hasMaterialSelected && !selectedMedia} disabledHint={materialHint} />
-                      <CustomSelect label="Support" value={selectedSupport} onChange={setSelectedSupport} options={ART_SUPPORTS} disabled={hasMaterialSelected && !selectedSupport} disabledHint={materialHint} />
+                      <CustomSelect label="Media" value={selectedMedia} onChange={withRemixFlash(setSelectedMedia, 'Media')} options={ART_MEDIA} disabled={hasMaterialSelected && !selectedMedia} disabledHint={materialHint} />
+                      <CustomSelect label="Support" value={selectedSupport} onChange={withRemixFlash(setSelectedSupport, 'Support')} options={ART_SUPPORTS} disabled={hasMaterialSelected && !selectedSupport} disabledHint={materialHint} />
                     </div>
                   </div>
+
+                  {/* Aspect Ratio selector */}
+                  <div className="flex flex-col items-center gap-2 mt-2 w-full max-w-[240px]">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-base-500/30 select-none">Aspect Ratio</span>
+                    <div className="grid grid-cols-3 gap-1 bg-[#101A28] border border-white/5 p-1 rounded-lg w-full">
+                      {(Object.entries(ASPECT_RATIO_CONFIG) as [AspectRatio, typeof ASPECT_RATIO_CONFIG[AspectRatio]][]).map(([key, config]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setAspectRatio(key)}
+                          className={`flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+                            aspectRatio === key 
+                              ? 'bg-[#00A2FD]/10 text-[#00A2FD]' 
+                              : 'text-base-400 hover:text-white hover:bg-white/5'
+                          }`}
+                        >
+                          <span className="text-sm leading-none opacity-80">{config.icon}</span>
+                          {config.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Remix flash confirmation */}
+                  <AnimatePresence>
+                    {remixFlash && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 4 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.15 }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#00A2FD]/10 border border-[#00A2FD]/20 text-[11px] font-medium text-[#00A2FD]"
+                      >
+                        <Check size={11} />
+                        Added to remix: <span className="font-bold">{remixFlash}</span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               )}
             </AnimatePresence>

@@ -3,7 +3,7 @@ import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc, order
 import { db } from '../firebase';
 import { Space, SpaceKnowledge } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown, Search, Check, Layers, Sparkles, Undo2 } from 'lucide-react';
+import { ChevronDown, Search, Check, Layers, Sparkles, Undo2, Plus, Settings, ChevronUp, CheckCircle2, X, PlusCircle, Pencil, Trash2, FileUp, Link2, FileText, AlertCircle } from 'lucide-react';
 import { generateTextWithGemini } from '../services/geminiService';
 
 interface SpacesManagerProps {
@@ -250,7 +250,7 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
         >
           <Layers size={13} className="group-hover:text-brand-400 transition-colors" />
           <span>Spaces</span>
-          <span className="material-symbols-outlined text-[13px] opacity-50">add</span>
+          <Plus size={13} className="opacity-50" />
         </motion.button>
       ) : (
         /* ── Expanded / active state ── */
@@ -271,7 +271,7 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                 className="w-7 h-7 flex items-center justify-center rounded-lg bg-base-800/50 border border-white/5 text-base-400 hover:text-brand-400 hover:border-brand-400/30 transition-all"
                 title="Create New Space"
               >
-                <span className="material-symbols-outlined text-[16px]">add</span>
+                <Plus size={16} />
               </button>
               <button 
                 onClick={() => {
@@ -281,7 +281,7 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                 className="w-7 h-7 flex items-center justify-center rounded-lg bg-base-800/50 border border-white/5 text-base-400 hover:text-brand-400 hover:border-brand-400/30 transition-all"
                 title="Manage Spaces"
               >
-                <span className="material-symbols-outlined text-[16px]">settings</span>
+                <Settings size={16} />
               </button>
               {/* Collapse button (only when not space-active) */}
               {!isSpaceActive && (
@@ -290,7 +290,7 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                   className="w-7 h-7 flex items-center justify-center rounded-lg bg-base-800/50 border border-white/5 text-base-400 hover:text-white hover:border-white/20 transition-all"
                   title="Collapse Spaces"
                 >
-                  <span className="material-symbols-outlined text-[16px]">expand_less</span>
+                  <ChevronUp size={16} />
                 </button>
               )}
             </div>
@@ -404,7 +404,7 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
             >
               <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[14px] text-brand-400">check_circle</span>
+                  <CheckCircle2 size={14} className="text-brand-400" />
                   <span className="font-bold text-brand-400 uppercase tracking-wider text-[10px]">Working in: {getDisplayTitle(selectedSpace.title)}</span>
                 </div>
                 {/* Exit space */}
@@ -414,7 +414,7 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                   className="text-base-500 hover:text-white transition-colors text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-white/5"
                   title="Exit space"
                 >
-                  <span className="material-symbols-outlined text-[12px]">close</span>
+                  <X size={12} />
                   Exit
                 </button>
               </div>
@@ -447,7 +447,7 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
             >
               <div className="p-8 border-b border-white/5 flex items-center justify-between bg-base-800/30">
                 <h2 className="text-xl font-bold flex items-center gap-3 text-white font-display">
-                  <span className="material-symbols-outlined text-brand-400 text-[24px]">layers</span>
+                  <Layers size={24} className="text-brand-400" />
                   {editingSpaceId ? 'Edit Space' : isCreating ? 'Create New Space' : 'Manage Spaces'}
                 </h2>
                 <div className="flex items-center gap-2">
@@ -457,11 +457,11 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                       className="w-10 h-10 flex items-center justify-center hover:bg-white/5 hover:bg-brand-400/10 rounded-full transition-colors text-brand-400 hover:text-brand-300"
                       title="Create New Space"
                     >
-                      <span className="material-symbols-outlined text-[24px]">add_circle</span>
+                      <PlusCircle size={24} />
                     </button>
                   )}
                   <button onClick={handleCloseForm} className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors text-base-400 hover:text-white">
-                    <span className="material-symbols-outlined">close</span>
+                    <X size={20} />
                   </button>
                 </div>
               </div>
@@ -485,21 +485,21 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                               className="w-10 h-10 flex items-center justify-center text-base-500 hover:text-brand-400 hover:bg-brand-400/10 rounded-xl transition-all"
                               title="Edit Space"
                             >
-                              <span className="material-symbols-outlined text-[20px]">edit</span>
+                              <Pencil size={20} />
                             </button>
                             <button 
                               onClick={(e) => handleDeleteSpace(e, space.id)}
                               className="w-10 h-10 flex items-center justify-center text-base-500 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all"
                               title="Delete Space"
                             >
-                              <span className="material-symbols-outlined text-[20px]">delete</span>
+                              <Trash2 size={20} />
                             </button>
                           </div>
                         </div>
                       ))}
                       {spaces.length === 0 && (
                         <div className="text-center py-20 text-base-600">
-                          <span className="material-symbols-outlined text-[48px] mb-4 opacity-20">layers</span>
+                          <Layers size={48} className="mb-4 opacity-20" />
                           <p className="text-sm">No spaces created yet</p>
                         </div>
                       )}
@@ -652,7 +652,7 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                               htmlFor="space-file-upload"
                               className="flex items-center justify-center gap-3 w-full p-5 rounded-2xl border border-dashed border-white/10 hover:border-brand-400/30 hover:bg-brand-400/5 transition-all cursor-pointer text-sm text-base-500 hover:text-brand-400"
                             >
-                              <span className="material-symbols-outlined text-[20px]">upload_file</span>
+                              <FileUp size={20} />
                               Upload Reference File
                             </label>
                           </div>
@@ -661,11 +661,11 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
                           {knowledge.map((k, i) => (
                             <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 text-xs">
                               <div className="flex items-center gap-3 text-base-400">
-                                <span className="material-symbols-outlined text-[18px]">{k.type === 'url' ? 'link' : 'description'}</span>
+                                {k.type === 'url' ? <Link2 size={18} /> : <FileText size={18} />}
                                 <span className="truncate max-w-[350px]">{k.name || k.value}</span>
                               </div>
                               <button type="button" onClick={() => removeKnowledge(i)} className="w-8 h-8 flex items-center justify-center text-base-600 hover:text-red-400 transition-colors">
-                                <span className="material-symbols-outlined text-[18px]">close</span>
+                                <X size={18} />
                               </button>
                             </div>
                           ))}
@@ -675,7 +675,7 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
 
                     {formError && (
                       <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-sm font-medium flex items-center gap-3 animate-in fade-in zoom-in duration-200">
-                        <span className="material-symbols-outlined text-[20px]">error</span>
+                        <AlertCircle size={20} className="text-red-400" />
                         {formError}
                       </div>
                     )}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { KeyRound, X, Eye, EyeOff, Lock } from 'lucide-react';
 
 interface ApiKeySetupProps {
   onSave: (key: string) => void;
@@ -41,7 +42,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onSave, currentKey, is
         <div className="p-6 border-b border-white/5 bg-base-800/30 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center">
-              <span className="material-symbols-outlined text-brand-400 text-[20px]">key</span>
+              <KeyRound size={20} className="text-brand-400" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-white font-display">
@@ -55,7 +56,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onSave, currentKey, is
               onClick={onClose}
               className="w-10 h-10 flex items-center justify-center hover:bg-white/5 rounded-full transition-colors text-base-400 hover:text-white"
             >
-              <span className="material-symbols-outlined">close</span>
+              <X size={20} />
             </button>
           )}
         </div>
@@ -122,9 +123,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onSave, currentKey, is
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-base-500 hover:text-white transition-colors"
                   title={showKey ? 'Hide key' : 'Show key'}
                 >
-                  <span className="material-symbols-outlined text-[20px]">
-                    {showKey ? 'visibility_off' : 'visibility'}
-                  </span>
+                  {showKey ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
             </div>
@@ -151,7 +150,7 @@ export const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onSave, currentKey, is
 
           {/* Privacy note */}
           <div className="flex items-start gap-2 text-[11px] text-base-600">
-            <span className="material-symbols-outlined text-[14px] mt-0.5 flex-shrink-0">lock</span>
+            <Lock size={14} className="mt-0.5 flex-shrink-0" />
             <span>Your API key is stored only in this browser's local storage and is sent directly to Google's Gemini API. We never see or store it.</span>
           </div>
         </div>
