@@ -35,7 +35,7 @@ export const ILLUSTRATORS = [
   { name: "Jan Balet", tooltip: "German-American illustrator celebrated for whimsical, folk art-inspired designs. Active: 1930-1990" },
   { name: "Asun Balzola", tooltip: "Spanish illustrator known for expressive, colorful children's book artwork. Active: 1970-2010" },
   { name: "Edgar Henry Banger", tooltip: "British illustrator famous for detailed botanical and natural history illustrations. Active: 1880-1920" },
-  { name: "Eulalie Minfred Banks", tooltip: "American illustrator recognized for charming children's book and magazine art. Active: 1900-1930" },
+  { name: "Eulalie Minfred Banks", tooltip: "American illustrator recognized for charming children's book and magazine art. Active: 1900-1930", aiContext: "Soft watercolor washes in warm pastel palettes (creamy yellows, blush pinks, sage greens, dusty mauves), rosy-cheeked cherubic children and small whimsical animals such as bunnies and chicks, delicate fine pen or graphite outlines beneath pastel washes, light or white backgrounds with minimal scenic detail, warm nostalgic innocent tone characteristic of 1920s–1950s American Golden Age children's book and greeting card illustration — never dark, moody, or high-contrast" },
   { name: "Istvan Banyai", tooltip: "Hungarian illustrator known for clever, wordless picture books and editorial art. Active: 1980-present" },
   { name: "George Barbier", tooltip: "French illustrator celebrated for elegant Art Deco fashion plates. Active: 1910-1930" },
   { name: "Cicely Mary Barker", tooltip: "British illustrator famous for the Flower Fairies series, with delicate watercolors. Active: 1910-1970" },

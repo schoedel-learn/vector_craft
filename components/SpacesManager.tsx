@@ -232,150 +232,207 @@ export const SpacesManager: React.FC<SpacesManagerProps> = ({ userId, selectedSp
 
   const selectedSpace = spaces.find(s => s.id === selectedSpaceId);
 
-  return (
-    <div className="mb-8">
-      <div className="flex items-center justify-between mb-4 px-1">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-brand-400 text-[20px]">layers</span>
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-base-500">Spaces</h3>
-        </div>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={handleInitializeDraft}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-base-800/50 border border-white/5 text-base-400 hover:text-brand-400 hover:border-brand-400/30 transition-all"
-            title="Create New Space"
-          >
-            <span className="material-symbols-outlined text-[18px]">add</span>
-          </button>
-          <button 
-            onClick={() => {
-              setIsCreating(false);
-              setIsModalOpen(true);
-            }}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-base-800/50 border border-white/5 text-base-400 hover:text-brand-400 hover:border-brand-400/30 transition-all"
-            title="Manage Spaces"
-          >
-            <span className="material-symbols-outlined text-[18px]">settings</span>
-          </button>
-        </div>
-      </div>
+  // Controls whether the full spaces panel is visible
+  const [isSpacesExpanded, setIsSpacesExpanded] = useState(false);
+  const isSpaceActive = !!selectedSpaceId;
 
-      <div className="relative z-50 mb-2" ref={dropdownRef}>
-        <button
+  return (
+    <div className="mb-4">
+      {/* ── Collapsed pill state: shown when no space is active and panel is closed ── */}
+      {!isSpaceActive && !isSpacesExpanded ? (
+        <motion.button
           type="button"
-          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-          className={`w-full flex items-center justify-between gap-3 bg-[#1A2634] border ${isDropdownOpen || selectedSpaceId ? 'border-brand-400/50 shadow-[0_0_15px_rgba(0,162,253,0.1)]' : 'border-white/10'} rounded-xl px-4 py-3 outline-none hover:border-brand-400/50 transition-all text-left group`}
+          onClick={() => setIsSpacesExpanded(true)}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-base-800/60 border border-white/8 text-base-500 hover:text-brand-400 hover:border-brand-400/30 hover:bg-brand-400/5 transition-all text-xs font-medium group"
+          title="Open Spaces"
         >
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${selectedSpaceId ? 'bg-brand-400/20 text-brand-400' : 'bg-base-800 text-base-500 group-hover:text-brand-400 group-hover:bg-brand-400/10'} transition-colors`}>
-              <Layers size={16} />
+          <Layers size={13} className="group-hover:text-brand-400 transition-colors" />
+          <span>Spaces</span>
+          <span className="material-symbols-outlined text-[13px] opacity-50">add</span>
+        </motion.button>
+      ) : (
+        /* ── Expanded / active state ── */
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-white/8 bg-[#0E1620]/80 p-3"
+        >
+          {/* Header row */}
+          <div className="flex items-center justify-between mb-3 px-1">
+            <div className="flex items-center gap-2">
+              <Layers size={14} className={isSpaceActive ? 'text-brand-400' : 'text-base-500'} />
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-base-500">Spaces</span>
             </div>
-            <div className="flex flex-col truncate">
-              <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-base-500 mb-0.5">Current Space</span>
-              <span className={`text-sm font-medium truncate ${selectedSpaceId ? 'text-white' : 'text-base-400 italic'}`}>
-                {selectedSpace ? getDisplayTitle(selectedSpace.title) : "None (Global Namespace)"}
-              </span>
+            <div className="flex items-center gap-1.5">
+              <button 
+                onClick={handleInitializeDraft}
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-base-800/50 border border-white/5 text-base-400 hover:text-brand-400 hover:border-brand-400/30 transition-all"
+                title="Create New Space"
+              >
+                <span className="material-symbols-outlined text-[16px]">add</span>
+              </button>
+              <button 
+                onClick={() => {
+                  setIsCreating(false);
+                  setIsModalOpen(true);
+                }}
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-base-800/50 border border-white/5 text-base-400 hover:text-brand-400 hover:border-brand-400/30 transition-all"
+                title="Manage Spaces"
+              >
+                <span className="material-symbols-outlined text-[16px]">settings</span>
+              </button>
+              {/* Collapse button (only when not space-active) */}
+              {!isSpaceActive && (
+                <button
+                  onClick={() => setIsSpacesExpanded(false)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-base-800/50 border border-white/5 text-base-400 hover:text-white hover:border-white/20 transition-all"
+                  title="Collapse Spaces"
+                >
+                  <span className="material-symbols-outlined text-[16px]">expand_less</span>
+                </button>
+              )}
             </div>
           </div>
-          <ChevronDown 
-            size={18} 
-            className={`text-base-500 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180 text-brand-400' : 'group-hover:text-brand-400'}`}
-          />
-        </button>
 
-        <AnimatePresence>
-          {isDropdownOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -4, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -4, scale: 0.98 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="absolute top-full mt-2 left-0 w-full bg-[#101A28] border border-white/10 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl"
+          {/* Dropdown selector */}
+          <div className="relative z-50" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className={`w-full flex items-center justify-between gap-3 bg-[#1A2634] border ${
+                isDropdownOpen || selectedSpaceId
+                  ? 'border-brand-400/50 shadow-[0_0_12px_rgba(0,162,253,0.08)]'
+                  : 'border-white/10'
+              } rounded-xl px-4 py-2.5 outline-none hover:border-brand-400/40 transition-all text-left group`}
             >
-              <div className="p-2 border-b border-white/5 relative bg-[#1A2634]/50">
-                <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-base-500" />
-                <input
-                  type="text"
-                  autoFocus
-                  placeholder="Search spaces..."
-                  value={spaceSearch}
-                  onChange={(e) => setSpaceSearch(e.target.value)}
-                  className="w-full bg-[#101A28] border border-white/5 rounded-lg text-sm text-white py-2 pl-9 pr-3 outline-none focus:border-brand-400/50 transition-colors placeholder:text-base-600"
-                />
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className={`flex items-center justify-center w-7 h-7 rounded-lg ${selectedSpaceId ? 'bg-brand-400/20 text-brand-400' : 'bg-base-800 text-base-500 group-hover:text-brand-400 group-hover:bg-brand-400/10'} transition-colors`}>
+                  <Layers size={14} />
+                </div>
+                <div className="flex flex-col truncate">
+                  <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-base-500 mb-0.5">Current Space</span>
+                  <span className={`text-sm font-medium truncate ${selectedSpaceId ? 'text-white' : 'text-base-400 italic'}`}>
+                    {selectedSpace ? getDisplayTitle(selectedSpace.title) : "None (Global Namespace)"}
+                  </span>
+                </div>
               </div>
-              
-              <div className="max-h-[240px] overflow-y-auto p-1.5 scrollbar-thin">
+              <ChevronDown 
+                size={16} 
+                className={`text-base-500 transition-transform duration-200 flex-shrink-0 ${isDropdownOpen ? 'rotate-180 text-brand-400' : 'group-hover:text-brand-400'}`}
+              />
+            </button>
+
+            <AnimatePresence>
+              {isDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="absolute top-full mt-2 left-0 w-full bg-[#101A28] border border-white/10 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl"
+                >
+                  <div className="p-2 border-b border-white/5 relative bg-[#1A2634]/50">
+                    <Search size={13} className="absolute left-4 top-1/2 -translate-y-1/2 text-base-500" />
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Search spaces..."
+                      value={spaceSearch}
+                      onChange={(e) => setSpaceSearch(e.target.value)}
+                      className="w-full bg-[#101A28] border border-white/5 rounded-lg text-sm text-white py-2 pl-9 pr-3 outline-none focus:border-brand-400/50 transition-colors placeholder:text-base-600"
+                    />
+                  </div>
+                  
+                  <div className="max-h-[220px] overflow-y-auto p-1.5 scrollbar-thin">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelectSpace(null);
+                        setIsDropdownOpen(false);
+                        setIsSpacesExpanded(false);
+                      }}
+                      className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors flex items-center justify-between group ${
+                        !selectedSpaceId ? 'bg-brand-400/10 text-brand-400 font-medium' : 'text-base-300 hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      <span className="italic flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-base-500 inline-block"></span>
+                        None (Global Namespace)
+                      </span>
+                      {!selectedSpaceId && <Check size={16} className="text-brand-400" />}
+                    </button>
+                    
+                    {spaces.filter(s => s.title.toLowerCase().includes(spaceSearch.toLowerCase())).map(space => (
+                      <button
+                        key={space.id}
+                        type="button"
+                        onClick={() => {
+                          onSelectSpace(space);
+                          setIsDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors flex items-center justify-between mt-1 group ${
+                          selectedSpaceId === space.id ? 'bg-brand-400/10 text-brand-400 font-medium' : 'text-base-200 hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex flex-col truncate">
+                          <span className="truncate">{getDisplayTitle(space.title)}</span>
+                          {space.description && <span className="text-[10px] text-base-500 truncate mt-0.5">{space.description}</span>}
+                        </div>
+                        {selectedSpaceId === space.id && <Check size={16} className="text-brand-400 flex-shrink-0" />}
+                      </button>
+                    ))}
+                    
+                    {spaces.filter(s => s.title.toLowerCase().includes(spaceSearch.toLowerCase())).length === 0 && (
+                      <div className="px-3 py-4 text-center text-sm text-base-500">
+                        No spaces found.
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Active space info card */}
+          {selectedSpace && (
+            <motion.div 
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-3 p-3 rounded-xl bg-brand-400/5 border border-brand-400/10 text-[12px] text-brand-200/80"
+            >
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[14px] text-brand-400">check_circle</span>
+                  <span className="font-bold text-brand-400 uppercase tracking-wider text-[10px]">Working in: {getDisplayTitle(selectedSpace.title)}</span>
+                </div>
+                {/* Exit space */}
                 <button
                   type="button"
-                  onClick={() => {
-                    onSelectSpace(null);
-                    setIsDropdownOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors flex items-center justify-between group ${
-                    !selectedSpaceId ? 'bg-brand-400/10 text-brand-400 font-medium' : 'text-base-300 hover:bg-white/5 hover:text-white'
-                  }`}
+                  onClick={() => { onSelectSpace(null); setIsSpacesExpanded(false); }}
+                  className="text-base-500 hover:text-white transition-colors text-[10px] flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-white/5"
+                  title="Exit space"
                 >
-                  <span className="italic flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-base-500 inline-block"></span>
-                    None (Global Namespace)
-                  </span>
-                  {!selectedSpaceId && <Check size={16} className="text-brand-400" />}
+                  <span className="material-symbols-outlined text-[12px]">close</span>
+                  Exit
                 </button>
-                
-                {spaces.filter(s => s.title.toLowerCase().includes(spaceSearch.toLowerCase())).map(space => (
-                  <button
-                    key={space.id}
-                    type="button"
-                    onClick={() => {
-                      onSelectSpace(space);
-                      setIsDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-colors flex items-center justify-between mt-1 group ${
-                      selectedSpaceId === space.id ? 'bg-brand-400/10 text-brand-400 font-medium' : 'text-base-200 hover:bg-white/5 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex flex-col truncate">
-                      <span className="truncate">{getDisplayTitle(space.title)}</span>
-                      {space.description && <span className="text-[10px] text-base-500 truncate mt-0.5">{space.description}</span>}
-                    </div>
-                    {selectedSpaceId === space.id && <Check size={16} className="text-brand-400 flex-shrink-0" />}
-                  </button>
-                ))}
-                
-                {spaces.filter(s => s.title.toLowerCase().includes(spaceSearch.toLowerCase())).length === 0 && (
-                  <div className="px-3 py-4 text-center text-sm text-base-500">
-                    No spaces found.
-                  </div>
+              </div>
+              {selectedSpace.description && <p className="opacity-70 leading-relaxed mt-1">{selectedSpace.description}</p>}
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {selectedSpace.prompt && (
+                  <span className="px-2 py-0.5 rounded-md bg-brand-400/10 border border-brand-400/20 text-[9px] font-bold uppercase tracking-wider text-brand-300">
+                    Custom Prompt
+                  </span>
+                )}
+                {selectedSpace.knowledge.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-md bg-brand-400/10 border border-brand-400/20 text-[9px] font-bold uppercase tracking-wider text-brand-300">
+                    {selectedSpace.knowledge.length} Knowledge Items
+                  </span>
                 )}
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
-      </div>
-
-      {selectedSpace && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-4 p-4 rounded-2xl bg-brand-400/5 border border-brand-400/10 text-[13px] text-brand-200/80"
-        >
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="material-symbols-outlined text-[16px] text-brand-400">info</span>
-            <span className="font-bold text-brand-400 uppercase tracking-wider text-[11px]">Active Space: {getDisplayTitle(selectedSpace.title)}</span>
-          </div>
-          {selectedSpace.description && <p className="mb-3 opacity-70 leading-relaxed">{selectedSpace.description}</p>}
-          <div className="flex flex-wrap gap-2">
-            {selectedSpace.prompt && (
-              <span className="px-2.5 py-1 rounded-lg bg-brand-400/10 border border-brand-400/20 text-[10px] font-bold uppercase tracking-wider text-brand-300">
-                Custom Prompt Active
-              </span>
-            )}
-            {selectedSpace.knowledge.length > 0 && (
-              <span className="px-2.5 py-1 rounded-lg bg-brand-400/10 border border-brand-400/20 text-[10px] font-bold uppercase tracking-wider text-brand-300">
-                {selectedSpace.knowledge.length} Knowledge Items
-              </span>
-            )}
-          </div>
         </motion.div>
       )}
 

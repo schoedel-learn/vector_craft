@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { GenerationStatus } from '../types';
 import { User } from 'firebase/auth';
 import { ART_STYLES } from './artStyles';
@@ -12,7 +12,14 @@ import { ART_MEDIA, ART_SUPPORTS } from './artMedia';
 import { GRAPHIC_DESIGNERS } from './artDesigners';
 import { ILLUSTRATORS } from './artIllustrators';
 import { MASTER_ARTISTS } from './artArtists';
-import { CustomSelect } from './CustomSelect';
+import { CustomSelect, SelectOption } from './CustomSelect';
+
+/** Look up the aiContext for a selected name from a given options array. */
+const getAiContext = (name: string, options: SelectOption[]): string | undefined => {
+  if (!name) return undefined;
+  const found = options.find(o => (typeof o === 'string' ? o : o.name) === name);
+  return found && typeof found !== 'string' ? found.aiContext : undefined;
+};
 import { SlidersHorizontal, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -135,14 +142,27 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
   const [currentSuggestions, setCurrentSuggestions] = useState<string[]>([]);
   const [placeholderSuggestion, setPlaceholderSuggestion] = useState('');
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [showStyleTooltip, setShowStyleTooltip] = useState(false);
+  const attachmentRef = useRef<HTMLDivElement>(null);
 
   // Mutual exclusivity — only one style and one material at a time
   const hasStyleSelected = !!(selectedStyle || selectedMovement || selectedDesigner || selectedIllustrator || selectedArtist);
   const hasMaterialSelected = !!(selectedMedia || selectedSupport);
   const activeStyleName = selectedStyle || selectedMovement || selectedDesigner || selectedIllustrator || selectedArtist || '';
   const activeMaterialName = selectedMedia || selectedSupport || '';
-  const styleHint = activeStyleName ? `${activeStyleName} is active \u2014 clear it to choose a different style` : '';
-  const materialHint = activeMaterialName ? `${activeMaterialName} is active \u2014 clear it to choose a different material` : '';
+  const styleHint = activeStyleName ? `${activeStyleName} is active — clear it to choose a different style` : '';
+  const materialHint = activeMaterialName ? `${activeMaterialName} is active — clear it to choose a different material` : '';
+
+  // Close attachment menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (attachmentRef.current && !attachmentRef.current.contains(e.target as Node)) {
+        setShowAttachmentMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const shuffledSuggestions = [...SUGGESTIONS_POOL].sort(() => 0.5 - Math.random());
@@ -189,9 +209,24 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
       }
       
       let roleModifiers = [];
-      if (selectedDesigner) roleModifiers.push(`graphic designer ${selectedDesigner}`);
-      if (selectedIllustrator) roleModifiers.push(`illustrator ${selectedIllustrator}`);
-      if (selectedArtist) roleModifiers.push(`master artist ${selectedArtist}`);
+      if (selectedDesigner) {
+        const ctx = getAiContext(selectedDesigner, GRAPHIC_DESIGNERS);
+        roleModifiers.push(ctx
+          ? `graphic designer ${selectedDesigner} — ${ctx}`
+          : `graphic designer ${selectedDesigner}`);
+      }
+      if (selectedIllustrator) {
+        const ctx = getAiContext(selectedIllustrator, ILLUSTRATORS);
+        roleModifiers.push(ctx
+          ? `illustrator ${selectedIllustrator} — ${ctx}`
+          : `illustrator ${selectedIllustrator}`);
+      }
+      if (selectedArtist) {
+        const ctx = getAiContext(selectedArtist, MASTER_ARTISTS);
+        roleModifiers.push(ctx
+          ? `master artist ${selectedArtist} — ${ctx}`
+          : `master artist ${selectedArtist}`);
+      }
       
       if (roleModifiers.length > 0) {
         let rolesString = '';
@@ -211,34 +246,26 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
 
   return (
     <div className="w-full max-w-2xl mx-auto mt-12 px-4">
-      {/* Hero Section */}
-      <div className="text-center mb-12">
-        <h2 className="text-5xl sm:text-6xl font-extrabold text-white mb-3 font-display tracking-tight leading-[1.1]">
-          Schoedel Design
-          <span className="block bg-gradient-to-r from-brand-400 to-brand-300 bg-clip-text text-transparent">
-            Vector AI
-          </span>
-        </h2>
-        <p className="text-base-400 text-lg max-w-md mx-auto">
-          AI-powered SVG vector art generation from text prompts
-        </p>
-        <div className="mt-6 w-16 h-px bg-gradient-to-r from-transparent via-brand-500/40 to-transparent mx-auto"></div>
-      </div>
-
-      {/* Prompt Section */}
-      <div className="text-center mb-8">
-        <h3 className="text-3xl font-bold text-white mb-3 font-sans">
-          What do you want to create?
-        </h3>
-        <p className="text-base-300 text-lg">
-          Describe an object, icon, or scene, and we'll render it as vector art.
-        </p>
-      </div>
+      {/* Hero Section — only shown to logged-out visitors */}
+      {!user && (
+        <div className="text-center mb-12">
+          <h2 className="text-5xl sm:text-6xl font-extrabold text-white mb-3 font-display tracking-tight leading-[1.1]">
+            Schoedel Design
+            <span className="block bg-gradient-to-r from-brand-400 to-brand-300 bg-clip-text text-transparent">
+              Vector AI
+            </span>
+          </h2>
+          <p className="text-base-400 text-lg max-w-md mx-auto">
+            AI-powered SVG vector art generation from text prompts
+          </p>
+          <div className="mt-6 w-16 h-px bg-gradient-to-r from-transparent via-brand-500/40 to-transparent mx-auto"></div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="relative group flex flex-col gap-2">
         <div className="flex items-center gap-2">
           {user && (
-            <div className="relative">
+            <div className="relative" ref={attachmentRef}>
               <button
                 type="button"
                 onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
@@ -253,17 +280,27 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
               </button>
               
               {showAttachmentMenu && (
-                <div className="absolute top-full left-0 mt-2 bg-[#1A2634] border border-white/10 rounded-xl p-3 shadow-2xl z-20 flex flex-col gap-3 min-w-[280px]">
+                <div className="absolute bottom-full left-0 mb-2 bg-[#1A2634] border border-white/10 rounded-xl p-3 shadow-2xl z-20 flex flex-col gap-3 min-w-[280px]">
+                  {/* URL row */}
                   <div className="flex items-center bg-black/20 rounded-lg px-3 py-2 border border-white/5 focus-within:border-[#00A2FD]/50 transition-colors">
                     <span className="material-symbols-outlined text-[18px] text-base-400 mr-2">link</span>
                     <input
                       type="url"
                       value={referenceUrl}
                       onChange={(e) => onReferenceUrlChange(e.target.value)}
-                      placeholder="Paste URL..."
+                      placeholder="Paste image URL..."
                       className="bg-transparent border-none outline-none text-sm text-white placeholder-base-500 w-full"
                       disabled={isLoading || isLimitReached}
                     />
+                    {referenceUrl && (
+                      <button
+                        type="button"
+                        onClick={() => onReferenceUrlChange('')}
+                        className="ml-2 text-base-500 hover:text-white transition-colors flex-shrink-0"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">close</span>
+                      </button>
+                    )}
                   </div>
                   
                   {isClient && (
@@ -273,7 +310,7 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                         {selectedFile ? (
                           <span className="text-sm text-[#00A2FD] truncate">{selectedFile.name}</span>
                         ) : (
-                          <span className="text-sm text-base-400">Upload file</span>
+                          <span className="text-sm text-base-400">Upload a file</span>
                         )}
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0 ml-2">
@@ -282,7 +319,11 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                           id="file-upload" 
                           className="hidden" 
                           accept="image/*,.txt,.md,.csv,.pdf,.docx" 
-                          onChange={(e) => onFileSelect(e.target.files?.[0] || null)} 
+                          onChange={(e) => {
+                            onFileSelect(e.target.files?.[0] || null);
+                            // Auto-close the flyout after a file is chosen
+                            setShowAttachmentMenu(false);
+                          }} 
                         />
                         <label 
                           htmlFor="file-upload" 
@@ -302,6 +343,15 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                       </div>
                     </div>
                   )}
+
+                  {/* Done button to close the flyout */}
+                  <button
+                    type="button"
+                    onClick={() => setShowAttachmentMenu(false)}
+                    className="w-full py-2 rounded-lg bg-[#00A2FD]/10 hover:bg-[#00A2FD]/20 text-[#00A2FD] text-sm font-semibold transition-colors border border-[#00A2FD]/20"
+                  >
+                    Done
+                  </button>
                 </div>
               )}
             </div>
@@ -357,14 +407,46 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
         
         {user && (
           <div className="mt-2 text-center relative z-40">
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="inline-flex items-center gap-2 text-sm text-base-400 hover:text-white transition-colors py-1 px-3 rounded-full hover:bg-white/5"
-            >
-              <SlidersHorizontal size={14} className={showAdvanced ? "text-[#00A2FD]" : ""} />
-              {showAdvanced ? "Hide advanced styles" : "Advanced styles & modifiers"}
-            </button>
+            <div className="inline-flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="inline-flex items-center gap-2 text-sm text-base-400 hover:text-white transition-colors py-1 px-3 rounded-full hover:bg-white/5"
+              >
+                <SlidersHorizontal size={14} className={showAdvanced ? "text-[#00A2FD]" : ""} />
+                {showAdvanced ? "Hide advanced styles" : "Advanced styles & modifiers"}
+              </button>
+              {/* Info tooltip icon */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onMouseEnter={() => setShowStyleTooltip(true)}
+                  onMouseLeave={() => setShowStyleTooltip(false)}
+                  onFocus={() => setShowStyleTooltip(true)}
+                  onBlur={() => setShowStyleTooltip(false)}
+                  className="w-5 h-5 flex items-center justify-center text-base-600 hover:text-[#00A2FD] transition-colors rounded-full"
+                  aria-label="Style selection tips"
+                >
+                  <Info size={13} />
+                </button>
+                <AnimatePresence>
+                  {showStyleTooltip && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 4, scale: 0.97 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute bottom-full right-0 mb-2 w-64 p-3 rounded-xl bg-[#1A2634] border border-white/10 shadow-2xl text-left z-50 pointer-events-none"
+                    >
+                      <p className="text-[11px] text-base-300 leading-relaxed">
+                        We recommend selecting <span className="text-white font-medium">one style</span> at a time. If applicable, you can also select a material to complement it — though certain materials may not render well if they aren&apos;t well aligned with the chosen style.
+                      </p>
+                      <div className="absolute bottom-[-5px] right-3 w-2.5 h-2.5 bg-[#1A2634] border-r border-b border-white/10 rotate-45" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
             
             <AnimatePresence>
               {showAdvanced && (
@@ -374,26 +456,6 @@ export const InputSection: React.FC<InputSectionProps> = ({ onGenerate, status, 
                   exit={{ opacity: 0, height: 0, y: -10 }}
                   className="mt-3 flex flex-col items-center gap-4 overflow-visible"
                 >
-                  {/* Gentle info banner when selections are active */}
-                  <AnimatePresence>
-                    {(hasStyleSelected || hasMaterialSelected) && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="w-full"
-                      >
-                        <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-[#00A2FD]/5 border border-[#00A2FD]/10">
-                          <Info size={14} className="text-[#00A2FD]/40 flex-shrink-0" />
-                          <p className="text-[11px] text-base-400 leading-relaxed">
-                            For best results, one style and one material at a time. Tap <span className="text-white/60 font-medium">\u2715</span> on any selection to clear it.
-                          </p>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
                   {/* Style selectors — mutually exclusive group */}
                   <div className="flex flex-col items-center gap-2">
                     <span className="text-[9px] font-bold uppercase tracking-[0.25em] text-base-500/30 select-none">Style</span>

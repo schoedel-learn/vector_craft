@@ -7,7 +7,7 @@ import { ChevronDown, Check, Search, X, Info } from 'lucide-react';
  * This lets us keep simple lists like ART_MEDIA as string[] while providing
  * rich tooltips for styles, movements, designers, illustrators, and painters.
  */
-export type SelectOption = string | { name: string; tooltip: string };
+export type SelectOption = string | { name: string; tooltip: string; aiContext?: string };
 
 const getOptionName = (opt: SelectOption): string =>
   typeof opt === 'string' ? opt : opt.name;
